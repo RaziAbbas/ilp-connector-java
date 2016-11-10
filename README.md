@@ -42,7 +42,7 @@ The following scenarios are enivisioned to be covered by `IlpInMemoryTestHarness
 
 * **SAME_LEDGER__ACCEPTED**
 A payment from one account to another on the same ledger where the recipient accepts the payment.  Since the transfer is performed on the same ledger, ILP is not strictly required.  However, a real ILP sender (e.g., a user in a browser) may not know if a Connector is involved or not since they will likely just be specifying an ILP destination address and expect their Ledger to figure things out).
-  * -[ ] Optimistic Mode
+  * -[x] Optimistic Mode
   * No Universal Mode (This type of ILP transaction is covered above using Optimistic Mode, and will not require fulfillments).
 * **SAME_LEDGER__REJECTED**
 A payment from one account to another on the same ledger where the recipient rejects the payment.
@@ -50,7 +50,7 @@ A payment from one account to another on the same ledger where the recipient rej
   * No Universal Mode (This type of ILP transaction is covered above using Optimistic Mode, and will not require fulfillments).
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__ONE_CONNECTOR__ACCEPTED**
 A payment from one account to another on different ledgers that have same asset type, and where the transfer involves one Connector, and where the recipient accepts the payment.  An example of this might be an ILP transfer between two U.S. banks.  Both banks (and their ledgers) will deal with USD currency, but it might require a Connector with ledger accounts at each bank to fulfill the transfer.  Also notice that no FX conversion is required since the two coordinated ledgers are using the same asset type (i.e., USD)
-  * -[ ] Optimistic Mode
+  * -[x] Optimistic Mode
   * -[ ] Universal Mode
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__ONE_CONNECTOR__REJECTED**
 A payment from one account to another on different ledgers that have same asset type, and where the transfer involves one Connector, and where the recipient rejects the payment.
