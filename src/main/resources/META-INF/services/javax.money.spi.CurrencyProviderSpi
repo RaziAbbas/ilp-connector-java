@@ -1,0 +1,3 @@
+# JavaMoney fq provider names
+money.fluid.javax.money.providers.SandCurrencyProvider
+money.fluid.javax.money.providers.DirtCurrencyProvider
