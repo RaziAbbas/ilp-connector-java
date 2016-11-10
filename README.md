@@ -28,7 +28,9 @@ Additionally, the `LedgerClient` interface provides a defined way for a Connecto
 #Test Harness
 In order to simulate and test various ledger/connector scenarios, the `money.fluid.ilp.connector.IlpInMemoryTestHarness` was created.  This is effectively a JUnit test that creates in-memory instances of various simulated Ledgers and Connectors, and executes ILP transactions to test and model ILP interactions.
 
-At a high-level, the harness utilizes account holds `Alice` and `Bob`, and gives them accounts on 2 different ledgers with distinct asset types.  The first simulated ledger is called the "Sand Ledger", which is denominated in granules of Silica Sand, like what you would find at 
+At a high-level, the harness utilizes simulated account holders `Alice` and `Bob`, and gives them accounts on 2 different simulated ledgers with distinct asset types, each supporting conditional holds.  
+
+The first simulated ledger is called the "Sand Ledger", which is denominated in granules of Silica Sand, like what you would find at 
   the beach.  The currency code for this ledger is SND, with a currency symbol of (S).  Both Alice and Bob start off with SND 500.
 
 The second simulated ledger is called the "Dirt Ledger", which is denominated in granules of dirt, like what you would find on a baseball field or on a farm.  The currency code for this ledger is DRT, with a currency symbol of (D).  Both Alice and Bob start off with DRT 500.
