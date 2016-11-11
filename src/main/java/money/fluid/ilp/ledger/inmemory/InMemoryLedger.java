@@ -35,6 +35,7 @@ import org.interledgerx.ilp.core.events.LedgerEvent;
 import org.interledgerx.ilp.core.events.LedgerEventHandler;
 import org.interledgerx.ilp.core.events.LedgerTransferExecutedEvent;
 import org.interledgerx.ilp.core.events.LedgerTransferPreparedEvent;
+import org.interledgerx.ilp.core.events.LedgerTransferRejectedEvent;
 import org.interledgerx.ilp.core.exceptions.InsufficientAmountException;
 
 import javax.money.MonetaryAmount;
@@ -132,8 +133,32 @@ public class InMemoryLedger implements Ledger {
     }
 
     @Override
-    public void rejectTransfer(LedgerTransfer transfer, LedgerTransferRejectedReason reason) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public void rejectTransfer(
+            IlpTransactionId ilpTransactionId, LedgerTransferRejectedReason ledgerTransferRejectedReason
+    ) {
+        // Whether remote or local, we always need to reverse the ILP transaction in optimistic mode transactions...
+        final Escrow reversedEscrow = this.escrowManager.reverseEscrow(ilpTransactionId);
+
+        // The ultimate source of the ILP transaction is local to this ledger, so there's no need to involve a connector.
+        if (this.getLedgerAccountManager().isLocallyServiced(reversedEscrow.getIlpPacketHeader().getSourceAddress())) {
+            // TODO: Notify the Wallet!
+        }
+        // The ultimate source of this ILP transaction is non-local, so the ledger needs to notify the appropriate connector
+        // so that it can pass its fulfillments back up the ILP chain.
+        else {
+            final LedgerTransferRejectedEvent event = new LedgerTransferRejectedEvent(
+                    this.getLedgerInfo(),
+                    reversedEscrow.getIlpPacketHeader(),
+                    reversedEscrow.getLocalSourceAddress().getLedgerAccountId(),
+                    reversedEscrow.getLocalDestinationAddress().getLedgerAccountId(),
+                    reversedEscrow.getAmount(),
+                    ledgerTransferRejectedReason
+            );
+
+            // Given a source address (for the Connector) ask the ledger for the connectorId.
+            final ConnectorId connectorId = this.getSourceConnector(reversedEscrow);
+            this.getLedgerConnectionManager().notifyEventListeners(connectorId, event);
+        }
     }
 
     @Override
@@ -143,7 +168,7 @@ public class InMemoryLedger implements Ledger {
 
     @Override
     public void fulfillCondition(final IlpTransactionId ilpTransactionId) {
-        // Fulfill the ILP transaction...
+        // Whether remote or local, we always need to execute the ILP transaction in optimistic mode transactions...
         final Escrow executedEscrow = this.escrowManager.executeEscrow(ilpTransactionId);
 
         // If the source account was local to _this_ ledger, then we don't need to do anything except notify the
@@ -163,17 +188,7 @@ public class InMemoryLedger implements Ledger {
             );
 
             // Given a source address (for the Connector) ask the ledger for the connectorId.
-            final ConnectorId connectorId = this.getLedgerConnectionManager().ledgerEventListeners
-                    .values().stream()
-                    .filter(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getOptLedgerAccountId().isPresent() && ledgerEventListener.getConnectorInfo().getOptLedgerAccountId().get().equals(
-                            executedEscrow.getLocalSourceAddress().getLedgerAccountId()))
-                    .map(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getConnectorId())
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException(String.format(
-                            "Unable to find ConnectorId for escrow source account: %s.",
-                            executedEscrow.getLocalSourceAddress()
-                    )));
-
+            final ConnectorId connectorId = this.getSourceConnector(executedEscrow);
             this.getLedgerConnectionManager().notifyEventListeners(connectorId, event);
         }
     }
@@ -181,6 +196,34 @@ public class InMemoryLedger implements Ledger {
     //////////////////
     // Private Helpers
     //////////////////
+
+    /**
+     * Helper method to encapsulate all logic surrounding the determination of which Connector should be processing
+     * events related to an {@link IlpTransactionId}.
+     * <p>
+     * TODO: Fix this per https://github.com/fluid-money/ilp-connector-java/issues/1.
+     * <p>
+     * Rather than making a real-time judgement about which connector can "currently" service the callback
+     * based upon the source address, the ledger likely needs to be tracking the reverse-path of the connector
+     * so that it can properly send events back to the right connector.  For example, imagine an ILP transfer
+     * that came in via ConnectorA, but by the time the transfer is approved by hte ledger, ConnectorA is no longer
+     * connected, but ConnectorB provides a "route" back to the ultimate ILP source address.  In this case, ConnectorB
+     * won't actually be able to fulfil the payment/rejection, because it wasn't the original connector.  Thus,
+     * the ledger has to inteligently track "pending transfers" just like the Connector does.
+     */
+    private ConnectorId getSourceConnector(final Escrow escrow) {  //final IlpTransactionId ilpTransactionId) {
+        return this.getLedgerConnectionManager().ledgerEventListeners
+                .values().stream()
+                .filter(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getOptLedgerAccountId().isPresent())
+                .filter(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getOptLedgerAccountId().get().equals(
+                        escrow.getLocalSourceAddress().getLedgerAccountId()))
+                .map(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getConnectorId())
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException(String.format(
+                        "Unable to find ConnectorId for escrow source account: %s.",
+                        escrow.getLocalSourceAddress()
+                )));
+    }
 
     /**
      * A lookup utility to find the local account for a Connector.

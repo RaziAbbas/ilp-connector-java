@@ -14,6 +14,7 @@ import money.fluid.ilp.ledgerclient.LedgerClient;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.LedgerInfo;
 import org.interledgerx.ilp.core.LedgerTransfer;
+import org.interledgerx.ilp.core.LedgerTransferRejectedReason;
 import org.interledgerx.ilp.core.events.LedgerConnectedEvent;
 import org.interledgerx.ilp.core.events.LedgerDirectTransferEvent;
 import org.interledgerx.ilp.core.events.LedgerDisonnectedEvent;
@@ -295,8 +296,34 @@ public class DefaultConnector implements Connector {
 
         @Override
         protected void handleEvent(final LedgerTransferRejectedEvent ledgerTransferRejectedEvent) {
-            throw new RuntimeException("Not Yet Implemented");
-        }
+            // TODO: From the LedgerTransferEvent doc: "Ledger plugins MUST ensure that the data in the noteToSelf either
+            // isn't shared with any untrusted party or encrypted before it is shared."
 
+            // If this value is signed via the fulfilment, then does it matter if it's encrypted?  In other words, what's
+            // secret about this information?  Perhaps the ILP Transaction Id?  If that's the case, then perhaps it would
+            // be preferable for the Ledger to store this data internally.
+
+            // The ledger that this executed transfer came from, so we can pass the fulfillment back.
+            final LedgerId originatingLedgerId =
+                    Optional.ofNullable(this.getListeningConnector().getPendingTransfers().get(
+                            ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId())
+                    )
+                            .map(noteToSelf -> noteToSelf.getOriginatingLedgerId())
+                            .orElseThrow(() -> new RuntimeException(
+                                    "No pending transfer existed to determine which ledger to pass rejected fulfilment back to!"));
+
+            // This Connector needs to send the rejection back to the ledger that originally triggered the ILP
+            // transaction in the first place.
+            final Optional<LedgerClient> optLedgerClient = this.getListeningConnector().findLedgerClient(
+                    originatingLedgerId);
+            if (optLedgerClient.isPresent()) {
+                optLedgerClient.get().rejectTransfer(
+                        ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId(),
+                        LedgerTransferRejectedReason.REJECTED_BY_RECEIVER
+                );
+            } else {
+                logger.warn("No LedgerClient existed for LedgerId: {}", originatingLedgerId);
+            }
+        }
     }
 }

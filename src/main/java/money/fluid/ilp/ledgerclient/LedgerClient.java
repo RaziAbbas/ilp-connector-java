@@ -53,10 +53,11 @@ public interface LedgerClient {
      * This should only be allowed if the entity rejecting the transfer is the
      * receiver
      *
-     * @param transfer
+     * @param ilpTransactionId
      * @param reason
      */
-    void rejectTransfer(LedgerTransfer transfer, LedgerTransferRejectedReason reason);
+    // TODO: It's unclear if we'll need an additional #rejectTransfer method that possibly accepts a LedgerEvent.
+    void rejectTransfer(IlpTransactionId ilpTransactionId, LedgerTransferRejectedReason reason);
 
     /**
      * Submit a fulfillment to a ledger.

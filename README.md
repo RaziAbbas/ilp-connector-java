@@ -46,7 +46,7 @@ A payment from one account to another on the same ledger where the recipient acc
   * No Universal Mode (This type of ILP transaction is covered above using Optimistic Mode, and will not require fulfillments).
 * **SAME_LEDGER__REJECTED**
 A payment from one account to another on the same ledger where the recipient rejects the payment.
-  * -[ ] Optimistic Mode
+  * -[x] Optimistic Mode
   * No Universal Mode (This type of ILP transaction is covered above using Optimistic Mode, and will not require fulfillments).
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__ONE_CONNECTOR__ACCEPTED**
 A payment from one account to another on different ledgers that have same asset type, and where the transfer involves one Connector, and where the recipient accepts the payment.  An example of this might be an ILP transfer between two U.S. banks.  Both banks (and their ledgers) will deal with USD currency, but it might require a Connector with ledger accounts at each bank to fulfill the transfer.  Also notice that no FX conversion is required since the two coordinated ledgers are using the same asset type (i.e., USD)
@@ -54,7 +54,7 @@ A payment from one account to another on different ledgers that have same asset 
   * -[ ] Universal Mode
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__ONE_CONNECTOR__REJECTED**
 A payment from one account to another on different ledgers that have same asset type, and where the transfer involves one Connector, and where the recipient rejects the payment.
-  * -[ ] Optimistic Mode
+  * -[x] Optimistic Mode
   * -[ ] Universal Mode
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__MULTIPLE_CONNECTORS__ACCEPTED**
 A payment from one account to another on different ledgers that have the same asset type, and where the transfer involves more than one Connector, and where recipient accepts the payment.

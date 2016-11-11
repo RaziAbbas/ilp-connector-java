@@ -83,8 +83,8 @@ public class InMemoryLedgerClient implements LedgerClient {
     }
 
     @Override
-    public void rejectTransfer(LedgerTransfer transfer, LedgerTransferRejectedReason reason) {
-        this.inMemoryLedger.rejectTransfer(transfer, reason);
+    public void rejectTransfer(IlpTransactionId ilpTransactionId, LedgerTransferRejectedReason reason) {
+        this.inMemoryLedger.rejectTransfer(ilpTransactionId, reason);
     }
 
     @Override

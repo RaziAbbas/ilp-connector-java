@@ -20,6 +20,7 @@ import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.Ledger;
 import org.interledgerx.ilp.core.LedgerInfo;
 import org.interledgerx.ilp.core.LedgerTransfer;
+import org.interledgerx.ilp.core.LedgerTransferRejectedReason;
 import org.javamoney.moneta.Money;
 import org.junit.After;
 import org.junit.Before;
@@ -29,6 +30,7 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.money.MonetaryAmount;
 import java.math.BigDecimal;
 import java.util.Optional;
 
@@ -215,7 +217,8 @@ public class IlpInMemoryTestHarness {
     }
 
     /**
-     * This test simulates a payment from one account to another on the same ledger, in this case the "Sand" ledger.
+     * This test simulates a payment from one account to another on the same ledger (in this case the "Sand" ledger)
+     * where the recipient accepts the payment payment.
      * <p>
      * The "Sand" ledger is a simulated in-memory ledger implemented by {@link InMemoryLedger} that tracks granules of
      * sand using the currency code "SND".  In this test, Alice will send SND 25 to Bob.  Since the transfer occurs on
@@ -225,7 +228,7 @@ public class IlpInMemoryTestHarness {
      * However, since the transfer came into the Ledger with ILP instructions and ILP recipients, I would make the case
      * that the Ledger _should_ still process this as an ILP transaction, as best it can (i.e., without needing to
      * involve a connector and likely without needing to involve crypto-conditions (?)).  In other words, the ledger
-     * should still put money on hold and give the recipient a chance to reject the money since in general a ledger
+     * should still put money on hold and give the recipient a chance to reject the money since, in general, a ledger
      * doesn't want to allow its account holders to send money into accounts without the receiving account holder's
      * approval of the transfer.
      * <p>
@@ -233,7 +236,7 @@ public class IlpInMemoryTestHarness {
      * each ledger do its thing.
      */
     @Test
-    public void testScenario1() {
+    public void testScenario1_RecipientAcceptsTransfer() {
         //Mock the QuotingService for now...
         //TODO: eventually this will be replaced with a real service that integrates with routing.
         when(quotingServiceMock.findBestConnector(any())).thenReturn(
@@ -249,35 +252,76 @@ public class IlpInMemoryTestHarness {
         // Simulate a wallet or other entity initiating a transfer from Alice to Bob.
         sandLedger1.send(ledgerTransfer);
 
+        // Sender has sent money, so that account should be reduced.
+        assertLedgerAccount(sandLedger1, ALICE, "475");
+        //receiver, and connector should have the initial amounts because the transfer is in a pending state.
+        assertLedgerAccount(sandLedger1, BOB, "500");
+        // Connector should not have any extra funds because it was not involved.
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        // Escrow should be SND 25 to reflect escrowed funds in each ledger.
+        assertLedgerAccount(sandLedger1, ESCROW, "25");
+
         // Simulate Bob's acceptance of the Transfer by fulfilling by ILP Transaction Id...
         sandLedger1.fulfillCondition(ledgerTransfer.getInterledgerPacketHeader().getIlpTransactionId());
 
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(IlpAddress.of(ALICE, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(new BigDecimal("475.00"), SND))
+        // Sender and receiver should have new account amounts reflecting a successful transfer
+        assertLedgerAccount(sandLedger1, ALICE, "475");
+        assertLedgerAccount(sandLedger1, BOB, "525");
+        // Connector should not have any extra funds because it was not involved.
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        // Escrow should be SND 0 to reflect executed escrow.
+        assertLedgerAccount(sandLedger1, ESCROW, "0");
+    }
+
+    /**
+     * This test simulates a payment from one account to another on the same ledger (in this case the "Sand" ledger)
+     * where the recipient accepts the payment payment.
+     */
+    @Test
+    public void testScenario1_RecipientRejectsTransfer() {
+        when(quotingServiceMock.findBestConnector(any())).thenReturn(
+                Optional.of(this.fluidConnector.getConnectorInfo()));
+
+        final DefaultLedgerTransfer ledgerTransfer =
+                new DefaultLedgerTransfer(
+                        IlpAddress.of(ALICE, SAND_LEDGER1),
+                        IlpAddress.of(BOB, SAND_LEDGER1),
+                        Money.of(25, "SND")
+                );
+
+        // Simulate a wallet or other entity initiating a transfer from Alice to Bob.
+        sandLedger1.send(ledgerTransfer);
+
+        // Sender has sent money, so that account should be reduced.
+        assertLedgerAccount(sandLedger1, ALICE, "475");
+        //receiver, and connector should have the initial amounts because the transfer is in a pending state.
+        assertLedgerAccount(sandLedger1, BOB, "500");
+        // Connector should not have any extra funds because it was not involved.
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        // Escrow should be SND 25 to reflect escrowed funds in each ledger.
+        assertLedgerAccount(sandLedger1, ESCROW, "25");
+
+        // Simulate Bob's rejection of the Transfer.
+        sandLedger1.rejectTransfer(
+                ledgerTransfer.getInterledgerPacketHeader().getIlpTransactionId(),
+                LedgerTransferRejectedReason.REJECTED_BY_RECEIVER
         );
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(IlpAddress.of(BOB, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(new BigDecimal("525.00"), SND))
-        );
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(
-                        IlpAddress.of(CONNECTOR, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(new BigDecimal("500"), SND))
-        );
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(
-                        IlpAddress.of(ESCROW, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(BigDecimal.ZERO, SND))
-        );
+
+        // Neither sender nor receiver should have a different amount of funds because the transaction was reversed.
+        assertLedgerAccount(sandLedger1, ALICE, "500");
+        assertLedgerAccount(sandLedger1, BOB, "500");
+        // Connector should not have any extra funds because it was not involved.
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        // Escrow should be SND 0.00 because the escrow tx was reversed.
+        assertLedgerAccount(sandLedger1, ESCROW, "0");
     }
 
     /**
      * This test simulates a fixed-source-amount payment from one account to another on different ledgers that share the
-     * same asset type, connected by a single connector.
+     * same asset type, connected by a single connector, where the recipient accepts the transfer.  In this case, Alice
+     * will send SND 100 from {@code sandLedger1} to Bob's account on {@code sandLedger2} via the Fluid Connector.
      * <p>
-     * In this case, Alice will send SND 100 from {@code sandLedger1} to Bob's account on {@code sandLedger2} via the
-     * Fluid Connector.  This test operates as follows:
+     * This test operates as follows:
      * <p>
      * <pre>
      *  <ol>
@@ -301,7 +345,7 @@ public class IlpInMemoryTestHarness {
      * @see "https://github.com/interledger/rfcs/blob/master/0003-interledger-protocol/0003-interledger-protocol.md#without-holds-optimistic-mode"
      */
     @Test
-    public void testScenario2a_FixedSourceAmount_DifferentLedgerWithSameAssetType() {
+    public void testScenario2_DifferentLedgerWithSameAssetType_SenderAcceptsPayment() {
         //Mock the QuotingService for now...
         //TODO: eventually this will be replaced with a real service that integrates with routing.
         when(quotingServiceMock.findBestConnector(any())).thenReturn(
@@ -319,62 +363,122 @@ public class IlpInMemoryTestHarness {
         // be async, so for a true integration test/simulation we would need to wait some time before checking assertions.
         sandLedger1.send(ledgerTransfer);
 
+        // Sender has sent money, so that account should be reduced.
+        assertLedgerAccount(sandLedger1, ALICE, "400");
+        // Alice's account on Ledger2 should not be affected.
+        assertLedgerAccount(sandLedger2, ALICE, "500");
+        //receiver, and connector should have the initial amounts because the transfer is in a pending state.
+        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger2, BOB, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        // The connector on SandLedger2 funded the escrow on SL2.
+        assertLedgerAccount(sandLedger2, CONNECTOR, "400");
+        // Escrow should be SND 100 to reflect escrowed funds in each ledger.
+        assertLedgerAccount(sandLedger1, ESCROW, "100");
+        assertLedgerAccount(sandLedger2, ESCROW, "100");
+
         // Simulate BOB accepting funds on Ledger 2.
         sandLedger2.fulfillCondition(ledgerTransfer.getInterledgerPacketHeader().getIlpTransactionId());
 
-        // Immediately after sandLedger2 fulfills the condition (i.e., accepts the payment), all ledgers will have
-        // received funds since this is an optimistic transfer and a synchronous unit test.
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(IlpAddress.of(ALICE, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(new BigDecimal("400"), SND))
-        );
-        assertThat(
-                sandLedger2.getLedgerAccountManager().getAccount(IlpAddress.of(BOB, SAND_LEDGER2)).get().getBalance(),
-                is(Money.of(new BigDecimal("600"), SND))
-        );
-        // Connector has no more than it started with since there are no transaction fees in this test.
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(
-                        IlpAddress.of(CONNECTOR, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(new BigDecimal("600"), SND))
-        );
-        // Connector has no more than it started with since there are no transaction fees in this test.
-        assertThat(
-                sandLedger2.getLedgerAccountManager().getAccount(
-                        IlpAddress.of(CONNECTOR, SAND_LEDGER2)).get().getBalance(),
-                is(Money.of(new BigDecimal("400"), SND))
-        );
+        // Sender and receiver should have new account amounts reflecting a successful transfer, but uninvoled accounts
+        // belonging to the same person on other ledgers should be unchanged.
+        assertLedgerAccount(sandLedger1, ALICE, "400");
+        assertLedgerAccount(sandLedger2, BOB, "600");
+        assertLedgerAccount(sandLedger2, ALICE, "500");
+        assertLedgerAccount(sandLedger1, BOB, "500");
 
-        // Escrow accounts on both ledgers should be 0 since all escrowed funds have been executed.
-        assertThat(
-                sandLedger1.getLedgerAccountManager().getAccount(
-                        IlpAddress.of(ESCROW, SAND_LEDGER1)).get().getBalance(),
-                is(Money.of(BigDecimal.ZERO, SND))
-        );
-        assertThat(
-                sandLedger2.getLedgerAccountManager().getAccount(
-                        IlpAddress.of(ESCROW, SAND_LEDGER2)).get().getBalance(),
-                is(Money.of(BigDecimal.ZERO, SND))
-        );
+        // Connector should have SND 100 extra funds because was paid on ledger1 and debited on ledger2.
+        assertLedgerAccount(sandLedger1, CONNECTOR, "600");
+        assertLedgerAccount(sandLedger2, CONNECTOR, "400");
+
+        // Escrow should be SND 0 to reflect executed escrows in each ledger.
+        assertLedgerAccount(sandLedger1, ESCROW, "0");
+        assertLedgerAccount(sandLedger2, ESCROW, "0");
     }
 
-    // TODO: Implement the following scenarios
+    /**
+     * This test simulates a fixed-source-amount payment from one account to another on different ledgers that share the
+     * same asset type, connected by a single connector, but where the recipient rejects the transfer.  In this case,
+     * Alice will attempt to send SND 100 from {@code sandLedger1} to Bob's account on {@code sandLedger2} via the Fluid
+     * Connector, but Bob will utlimately reject the payment.
+     * <p>
+     * This test operates as follows:
+     * <p>
+     * <pre>
+     *  <ol>
+     *      <li>The sending application (this test) chooses an amount (SND 100) and calls on its local interledger
+     * module (in this case an instance of {@link Ledger}) to send that amount from Alice to an escrow account operated
+     * by the ledger, with an ultimate destination of Bob's account on SandLedger2. (To accomplish this, the
+     * test-harness passes the destination address and other parameters as arguments of the call).</li>
+     *      <li>The ledger determines that it cannot service the transfer locally, and polls any connectors that are
+     * connected to it to determine if they can process the payment (likely this will involve a combo of quoting and
+     * routing service consultations as well)</li>
+     * <li>The Connector responds that it can fulfill the transfer because it has accounts on both ledgers.</li>
+     * <li>The connector initiates an 2nd ILP transaction on the DIRT ledger with the appropriate amount.</li>
+     * <li>The DIRT ledger escrows the amount for the recipient (BOB).</li>
+     * <li>The test calls a "reject" method on the DIRT ledger on behalf of Bob</li>
+     * <li>The transfer is rejected, and the Connector is notified.</li>
+     * <li>The connector receives the notification and rejects its transfer on Ledger1.</li>
+     * <li>Ledger1 transfers the money back to Alice's account and the ILP transacation is reversed.</li>
+     *  </ol>
+     * </pre>
+     *
+     * @see "https://github.com/interledger/rfcs/blob/master/0003-interledger-protocol/0003-interledger-protocol.md#without-holds-optimistic-mode"
+     */
+    @Test
+    public void testScenario2_DifferentLedgerWithSameAssetType_SenderRejectsPayment() {
+        //Mock the QuotingService for now...
+        //TODO: eventually this will be replaced with a real service that integrates with routing.
+        when(quotingServiceMock.findBestConnector(any())).thenReturn(
+                Optional.of(this.fluidConnector.getConnectorInfo()));
 
-    // OPTIMISTIC Mode Rejections
-    // * fixed source/destination-amount payments from one account to another on different ledgers that have same/different asset types (1 Connector) where the recipient rejects funds.
+        // Step1: Assemble and send an amount of SND to Bob on the Sand2 Ledger.
+        final LedgerTransfer ledgerTransfer = new DefaultLedgerTransfer(
+                IlpAddress.of(ALICE, SAND_LEDGER1),
+                IlpAddress.of(BOB, SAND_LEDGER2),
+                Money.of(100, "SND")
+        );
 
-    // OPTIMISTIC Mode
-    // * fixed source/destination-amount payments from one account to another on different ledgers that have different asset types (1 Connector)
-    // * fixed source/destination-amount payments from one account to another on different ledgers that share the same asset type (N Connectors) -> Chase to BofA
-    // * fixed source/destination-amount payments from one account to another on different ledgers that have different asset types (N Connectors) -> Chase to Bitcoin
+        // SandLedger 2 is configured to automatically accept any payment and fulfill the condition, so there's nothing
+        // more to do here except wait for the synchronous #send call to finish.  In a real system, the processing would
+        // be async, so for a true integration test/simulation we would need to wait some time before checking assertions.
+        sandLedger1.send(ledgerTransfer);
 
-    // With Conditions
-    // * fixed source/destination-amount payments from one account to another on different ledgers that have the same asset types (1 Connector)
-    // * fixed source/destination-amount payments from one account to another on different ledgers that have different asset types (1 Connector)
-    // * fixed source/destination-amount payments from one account to another on different ledgers that share the same asset type (N Connectors) -> Chase to BofA
-    // * fixed source/destination-amount payments from one account to another on different ledgers that have different asset types (N Connectors) -> Chase to Bitcoin
+        // Sender has sent money, so that account should be reduced.
+        assertLedgerAccount(sandLedger1, ALICE, "400");
+        // Alice's account on Ledger2 should not be affected.
+        assertLedgerAccount(sandLedger2, ALICE, "500");
+        //receiver, and connector should have the initial amounts because the transfer is in a pending state.
+        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger2, BOB, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        // The connector on SandLedger2 funded the escrow on SL2.
+        assertLedgerAccount(sandLedger2, CONNECTOR, "400");
+        // Escrow should be SND 100 to reflect escrowed funds in each ledger.
+        assertLedgerAccount(sandLedger1, ESCROW, "100");
+        assertLedgerAccount(sandLedger2, ESCROW, "100");
 
-    // With transaction fess...
+        // Simulate BOB rejecting funds on Ledger 2.
+        sandLedger2.rejectTransfer(
+                ledgerTransfer.getInterledgerPacketHeader().getIlpTransactionId(),
+                LedgerTransferRejectedReason.REJECTED_BY_RECEIVER
+        );
+
+        // Sender and receiver should have their original amounts because the transfer was rejected and reversed.
+        assertLedgerAccount(sandLedger1, ALICE, "500");
+        assertLedgerAccount(sandLedger2, BOB, "500");
+        assertLedgerAccount(sandLedger2, ALICE, "500");
+        assertLedgerAccount(sandLedger1, BOB, "500");
+
+        // Connector should have their original amounts because the transfer was rejected and reversed.
+        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger2, CONNECTOR, "500");
+
+        // Escrow should be SND 0 to reflect reversed escrows in each ledger.
+        assertLedgerAccount(sandLedger1, ESCROW, "0");
+        assertLedgerAccount(sandLedger2, ESCROW, "0");
+    }
+
 
     // TODO: Create a test that exercises the routing table.  For example, if two connectors are connected to a ledger and
     // both can process/route an ILP payment, then the ledger should be smart enough to route the payment to the best
@@ -446,4 +550,28 @@ public class IlpInMemoryTestHarness {
         );
     }
 
+    private void assertLedgerAccount(
+            final Ledger ledger,
+            final LedgerAccountId ledgerAccountId,
+            final String amount
+    ) {
+        final IlpAddress ledgerAccountAddress = IlpAddress.of(ledgerAccountId, ledger.getLedgerInfo().getLedgerId());
+        final LedgerAccount ledgerAccount = ledger.getLedgerAccountManager().getAccount(ledgerAccountAddress).get();
+        assertThat(
+                ledgerAccount.getBalance(),
+                is(Money.of(new BigDecimal(amount), ledger.getLedgerInfo().getCurrencyCode()))
+        );
+    }
+
+    private void assertLedgerAccount(
+            final Ledger ledger,
+            final LedgerAccountId ledgerAccountId,
+            final MonetaryAmount expectedAmount
+    ) {
+        final IlpAddress ledgerAccountAddress = IlpAddress.of(ledgerAccountId, ledger.getLedgerInfo().getLedgerId());
+        final LedgerAccount ledgerAccount = ledger.getLedgerAccountManager().getAccount(ledgerAccountAddress).get();
+        assertThat(ledgerAccount.getBalance(), is(expectedAmount)
+                   //is(Money.of(new BigDecimal("475.00"), SND))
+        );
+    }
 }
