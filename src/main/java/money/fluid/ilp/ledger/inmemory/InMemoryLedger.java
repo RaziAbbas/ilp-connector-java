@@ -397,14 +397,9 @@ public class InMemoryLedger implements Ledger {
         @NonNull
         private final Map<IlpAddress, LedgerAccount> accounts;
 
-        // Local identifier to account mapping...Consider a Set here?
-        @NonNull
-        private final Map<ConnectorId, LedgerAccount> connectorAccounts;
-
         private InMemoryLedgerAccountManager(final LedgerInfo ledgerInfo) {
             this.ledgerInfo = Objects.requireNonNull(ledgerInfo);
             this.accounts = new HashMap<>();
-            this.connectorAccounts = new HashMap<>();
         }
 
         /**
