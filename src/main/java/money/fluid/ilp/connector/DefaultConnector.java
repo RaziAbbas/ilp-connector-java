@@ -193,9 +193,12 @@ public class DefaultConnector implements Connector {
 
                 // TODO: Consider putting getConnectorLedger(ledgerId) into the connector, and return an optional.
                 final LedgerClient ledgerClient = this.listeningConnector.getLedgerClient(
-                        route.getDestinationAddress().getLedgerId()
+                        route.getSourceAddress().getLedgerId()
                 ).orElseThrow(() -> new RuntimeException(
-                        "Routing table had a route but Connector has no DefaultLedgerClient!")
+                        String.format(
+                                "Routing table had a route but Connector has no DefaultLedgerClient for LedgerId %s!",
+                                ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId()
+                        ))
                 );
 
                 // TODO: Is this correct?  The connector is saying to escrow money locally from itself to a local recipient,
@@ -207,7 +210,8 @@ public class DefaultConnector implements Connector {
 
                         // TODO: Should this come from the routing table, or should the routing table return a ledgerId,
                         // and then _this_ connector can determine what it's ledgerId is on that ledger?
-                        route.getSourceAddress(),
+                        //route.getSourceAddress(),
+                        ledgerClient.getConnectionInfo().getLedgerAccountId(),
 
                         // The connector doesn't actually know who the local destination account is.  Thus, it's empty,
                         // but perhaps it shouldn't even exist?
@@ -245,12 +249,24 @@ public class DefaultConnector implements Connector {
 
                 ledgerClient.send(transfer);
             } else {
-                throw new RuntimeException("Implement Me!");
-            }
+                // If there's no route, then we need to reject the transfer and then throw an exception...
+                final LedgerId ledgerId = ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId();
+                final LedgerClient ledgerClient = this.getListeningConnector().getLedgerClient(ledgerId)
+                        .orElseThrow(() -> new RuntimeException(
+                                String.format(
+                                        "Received ledgerTransferPreparedEvent for disconnected Ledger %s",
+                                        ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId()
+                                )));
+                ledgerClient.rejectTransfer(
+                        ledgerTransferPreparedEvent.getIlpPacketHeader().getIlpTransactionId(),
+                        LedgerTransferRejectedReason.NO_ROUTE_TO_LEDGER
+                );
 
-            // For now, if the prepared transfer can't be routed by this connected, then the connector does nothing.
-            // The payment will be expired after its widow by the ledger.
-            // TODO: Query the list or js code to determine what should happen here...
+                // For now, if the prepared transfer can't be routed by this connector, then the connector does this.
+                // But is this correct?
+                // TODO: Query the list or js code to determine what should happen here...
+                throw new RuntimeException(String.format("No route to Ledger %s", ledgerId));
+            }
         }
 
         /**

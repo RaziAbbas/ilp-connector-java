@@ -4,7 +4,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.ToString;
 import money.fluid.ilp.connector.model.ids.LedgerAccountId;
 import money.fluid.ilp.ledger.model.LedgerId;
 
@@ -13,7 +12,6 @@ import money.fluid.ilp.ledger.model.LedgerId;
  */
 @RequiredArgsConstructor
 @Getter
-@ToString
 @EqualsAndHashCode
 public class IlpAddress {
 
@@ -27,5 +25,10 @@ public class IlpAddress {
      */
     public static IlpAddress of(final LedgerAccountId accountId, final LedgerId ledgerId) {
         return new IlpAddress(accountId, ledgerId);
+    }
+
+    @Override
+    public String toString() {
+        return this.getLedgerAccountId() + "@" + this.getLedgerId();
     }
 }

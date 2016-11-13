@@ -7,6 +7,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import money.fluid.ilp.connector.model.ids.ConnectorId;
+import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.Ledger;
 
 import java.util.UUID;
@@ -40,6 +41,14 @@ public class ConnectionInfo {
     @NonNull
     @Getter
     private final ConnectorId connectorId;
+
+    // The ILP address of this Connector on the Ledger that this ConnectionInfo will be used to connect to.  This should
+    // probably be specified by the connector (and determined before-hand by an out-of-band process like a manual ledger
+    // registration process), although based upon the credentials that contained in a connection, it's possible that a
+    // ledger might return this account identifier to a Connector).
+    @NonNull
+    @Getter
+    private final IlpAddress ledgerAccountId;
 
     public String getConnectionId() {
         return String.format(

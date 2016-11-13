@@ -79,7 +79,8 @@ public class IlpInMemoryTestHarness {
     // This is the unique account identifier for the connector.  For simplicity, it is the same on each in-memory ledger
     // for purposes of this test.  In reality, this account identifier would be a configuration option of the connector
     // on a per-ledger basis.
-    private static final LedgerAccountId CONNECTOR = LedgerAccountId.of("fluid-connector-27");
+    private static final LedgerAccountId CONNECTOR1 = LedgerAccountId.of("fluid-connector-1");
+    private static final LedgerAccountId CONNECTOR2 = LedgerAccountId.of("fluid-connector-2");
 
     private static final LedgerAccountId ALICE = LedgerAccountId.of("alice");
     private static final LedgerAccountId BOB = LedgerAccountId.of("bob");
@@ -88,16 +89,30 @@ public class IlpInMemoryTestHarness {
 
     private static final LedgerId SAND_LEDGER1 = LedgerId.of("sand-ledger1.example.com");
     private static final LedgerId SAND_LEDGER2 = LedgerId.of("sand-ledger2.example.com");
+    private static final LedgerId SAND_LEDGER3 = LedgerId.of("sand-ledger3.example.com");
     private static final LedgerId DIRT_LEDGER1 = LedgerId.of("dirt-ledger1.example.com");
     private static final LedgerId DIRT_LEDGER2 = LedgerId.of("dirt-ledger2.example.com");
+    private static final String INITIAL_AMOUNT = "500";
+    private static final String ZERO_AMOUNT = "0";
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Mock
-    private RoutingService routingServiceMock;
+    private RoutingService connector1RoutingServiceMock;
+    @Mock
+    private RoutingService connector2RoutingServiceMock;
 
     @Mock
-    private QuotingService quotingServiceMock;
+    private QuotingService sandLedger1QuotingServiceMock;
+
+    @Mock
+    private QuotingService sandLedger2QuotingServiceMock;
+
+    @Mock
+    private QuotingService sandLedger3QuotingServiceMock;
+
+    @Mock
+    private QuotingService dirtLedger1QuotingServiceMock;
 
     //////////
     // Ledgers
@@ -106,6 +121,7 @@ public class IlpInMemoryTestHarness {
     // Ledgers for tracking the SND asset.
     private InMemoryLedger sandLedger1;
     private InMemoryLedger sandLedger2;
+    private InMemoryLedger sandLedger3;
     // Ledgers for tracking the DRT asset.
     private InMemoryLedger dirtLedger1;
 
@@ -116,6 +132,7 @@ public class IlpInMemoryTestHarness {
     // This is the ILP code that allows this connector to interface with the Sand Ledger.
     private LedgerClient sandLedger1Client;
     private LedgerClient sandLedger2Client;
+    private LedgerClient sandLedger3Client;
 
     // This is the ILP code that allows this connector to inteface with the Dirt Ledger.
     private LedgerClient dirtLedger1Client;
@@ -125,7 +142,8 @@ public class IlpInMemoryTestHarness {
     /////////////
 
     // The Fluid Money connector that has accounts on both the Sand and Dirt ledgers.
-    private Connector fluidConnector;
+    private Connector fluidConnector1;
+    private Connector fluidConnector2;
 
 
     @Before
@@ -151,69 +169,135 @@ public class IlpInMemoryTestHarness {
         final LedgerInfo sandLedger1Info = new DefaultLedgerInfo(
                 precision, scale, SND, SAND_CURRENCY_SYMBOL, SAND_LEDGER1
         );
-        this.sandLedger1 = new InMemoryLedger("Sand Ledger 1", sandLedger1Info, quotingServiceMock);
+        this.sandLedger1 = new InMemoryLedger("Sand Ledger 1", sandLedger1Info, sandLedger1QuotingServiceMock);
         this.initializeLedgerAccounts(sandLedger1.getLedgerAccountManager());
 
         // Initialize Sand Ledger2
         final LedgerInfo sandLedger2Info = new DefaultLedgerInfo(
                 precision, scale, SND, SAND_CURRENCY_SYMBOL, SAND_LEDGER2
         );
-        this.sandLedger2 = new InMemoryLedger("Sand Ledger 2", sandLedger2Info, quotingServiceMock);
+        this.sandLedger2 = new InMemoryLedger("Sand Ledger 2", sandLedger2Info, sandLedger2QuotingServiceMock);
         this.initializeLedgerAccounts(sandLedger2.getLedgerAccountManager());
+
+        // Initialize Sand Ledger3
+        final LedgerInfo sandLedger3Info = new DefaultLedgerInfo(
+                precision, scale, SND, SAND_CURRENCY_SYMBOL, SAND_LEDGER3
+        );
+        this.sandLedger3 = new InMemoryLedger("Sand Ledger 3", sandLedger3Info, sandLedger3QuotingServiceMock);
+        this.initializeLedgerAccounts(sandLedger3.getLedgerAccountManager());
 
         // Initialize Dirt Ledger1
         final LedgerInfo dirtLedger1Info = new DefaultLedgerInfo(
                 precision, scale, DRT, DIRT_CURRENCY_SYMBOL, DIRT_LEDGER1
         );
-        this.dirtLedger1 = new InMemoryLedger("Dirt Ledger 1", dirtLedger1Info, quotingServiceMock);
+        this.dirtLedger1 = new InMemoryLedger("Dirt Ledger 1", dirtLedger1Info, dirtLedger1QuotingServiceMock);
         this.initializeLedgerAccounts(dirtLedger1.getLedgerAccountManager());
 
         //######################
-        // Initialize Ledger Clients
+        // Initialize Connector1
         //######################
+        {
+            // Just random connector ids...don't read too much into it.  Hard-coded for now so the ledgerAccountId and the
+            // connector1Id are the same for simulation purposes.
+            final ConnectorId connector1Id = ConnectorId.of(CONNECTOR1.getId());
 
-        // Just a random connector id...don't read too much into it.  Hard-coded for now so the ledgerAccountId and the
-        // connectorId are the same for simulation purposes.
-        final ConnectorId connectorId = ConnectorId.of(CONNECTOR.getId());
+            // Each LedgerClient creates a single connection to a connector, and then handles all events via that
+            // single connection.
+            this.sandLedger1Client = new InMemoryLedgerClient(
+                    ConnectionInfo.builder()
+                            .clientId(CONNECTOR1.getId())
+                            .clientVersion("0.0.1")
+                            .connectorId(connector1Id).connectorId(connector1Id)
+                            // TODO: Improve the builder to only take an account id...
+                            .ledgerAccountId(IlpAddress.of(CONNECTOR1, SAND_LEDGER1))
+                            .build(),
+                    sandLedger1
+            );
+            this.sandLedger2Client = new InMemoryLedgerClient(
+                    ConnectionInfo.builder()
+                            .clientId(CONNECTOR1.getId())
+                            .clientVersion("0.0.1")
+                            .connectorId(connector1Id)
+                            // TODO: Improve the builder to only take an account id...
+                            .ledgerAccountId(IlpAddress.of(CONNECTOR1, SAND_LEDGER2))
+                            .build(),
+                    sandLedger2
+            );
+            this.dirtLedger1Client = new InMemoryLedgerClient(
+                    ConnectionInfo.builder()
+                            .clientId(CONNECTOR1.getId())
+                            .clientVersion("0.0.1")
+                            .connectorId(connector1Id)
+                            // TODO: Improve the builder to only take an account id...
+                            .ledgerAccountId(IlpAddress.of(CONNECTOR1, DIRT_LEDGER1))
+                            .build(),
+                    dirtLedger1
+            );
 
-        // Each LedgerClient creates a single connection to a connector, and then handles all events via that
-        // single connection.
-        this.sandLedger1Client = new InMemoryLedgerClient(
-                ConnectionInfo.builder().clientId("SandLedger1").clientVersion("0.0.1").connectorId(
-                        connectorId).connectorId(
-                        connectorId).build(),
-                sandLedger1
-        );
-        this.sandLedger2Client = new InMemoryLedgerClient(
-                ConnectionInfo.builder().clientId("SandLedger2").clientVersion("0.0.1").connectorId(
-                        connectorId).build(),
-                sandLedger2
-        );
-        this.dirtLedger1Client = new InMemoryLedgerClient(
-                ConnectionInfo.builder().clientId("DirtLedger1").clientVersion("0.0.1").connectorId(
-                        connectorId).build(),
-                dirtLedger1
-        );
+            final ConnectorInfo connectorInfo = ConnectorInfo.builder()
+                    .connectorId(connector1Id)
+                    .optLedgerAccountId(Optional.empty())
+                    .build();
+
+            // For simulation purposes, this connector has the same account identifier on all in-memory ledgers.
+            final ImmutableSet<LedgerClient> ledgerClients = ImmutableSet.of(
+                    sandLedger1Client, sandLedger2Client, dirtLedger1Client
+            );
+            this.fluidConnector1 = new DefaultConnector(
+                    connectorInfo, ledgerClients, this.connector1RoutingServiceMock);
+        }
 
         //######################
-        // Initialize Connector(s)
+        // Initialize Connector2
         //######################
+        {
+            // Just random connector id...don't read too much into it.  Hard-coded for now so the ledgerAccountId and the
+            // connector1Id are the same for simulation purposes.
+            final ConnectorId connectorId = ConnectorId.of(CONNECTOR2.getId());
 
-        final ConnectorInfo fluidConnectorInfo = ConnectorInfo.builder().connectorId(connectorId).optLedgerAccountId(
-                Optional.empty()).build();
+            // Each LedgerClient creates a single connection to a connector, and then handles all events via that
+            // single connection.
+            this.sandLedger2Client = new InMemoryLedgerClient(
+                    ConnectionInfo.builder()
+                            .clientId(CONNECTOR2.getId())
+                            .clientVersion("0.0.1")
+                            .connectorId(connectorId)
+                            // TODO: Improve the builder to only take an account id...
+                            .ledgerAccountId(IlpAddress.of(CONNECTOR2, SAND_LEDGER2))
+                            .build(),
+                    sandLedger2
+            );
+            this.sandLedger3Client = new InMemoryLedgerClient(
+                    ConnectionInfo.builder()
+                            .clientId(CONNECTOR2.getId())
+                            .clientVersion("0.0.1")
+                            .connectorId(connectorId)
+                            .connectorId(connectorId)
+                            // TODO: Improve the builder to only take an account id...
+                            .ledgerAccountId(IlpAddress.of(CONNECTOR2, SAND_LEDGER3))
+                            .build(),
+                    sandLedger3
+            );
 
-        // For simulation purposes, this connector has the same account identifier on all in-memory ledgers.
-        final ImmutableSet<LedgerClient> ledgerClients = ImmutableSet.of(
-                sandLedger1Client, sandLedger2Client, dirtLedger1Client);
+            final ConnectorInfo connectorInfo = ConnectorInfo.builder()
+                    .connectorId(connectorId)
+                    .optLedgerAccountId(Optional.empty())
+                    .build();
 
-        this.fluidConnector = new DefaultConnector(fluidConnectorInfo, ledgerClients, this.routingServiceMock);
+            // For simulation purposes, this connector has the same account identifier on all in-memory ledgers.
+            final ImmutableSet<LedgerClient> ledgerClients = ImmutableSet.of(sandLedger2Client, sandLedger3Client);
+            this.fluidConnector2 = new DefaultConnector(
+                    connectorInfo, ledgerClients, this.connector2RoutingServiceMock);
+        }
+
+        this.initializeMockQuotingServices();
     }
-
 
     @After
     public void tearDown() {
         // Disconnect each LedgerClient...
-        fluidConnector.getLedgerClients().stream().forEach(simpleLedger -> simpleLedger.disconnect());
+        fluidConnector1.getLedgerClients().stream().forEach(simpleLedger -> simpleLedger.disconnect());
+        fluidConnector2.getLedgerClients().stream().forEach(simpleLedger -> simpleLedger.disconnect());
     }
 
     /**
@@ -237,11 +321,6 @@ public class IlpInMemoryTestHarness {
      */
     @Test
     public void testScenario1_RecipientAcceptsTransfer() {
-        //Mock the QuotingService for now...
-        //TODO: eventually this will be replaced with a real service that integrates with routing.
-        when(quotingServiceMock.findBestConnector(any())).thenReturn(
-                Optional.of(this.fluidConnector.getConnectorInfo()));
-
         final DefaultLedgerTransfer ledgerTransfer =
                 new DefaultLedgerTransfer(
                         IlpAddress.of(ALICE, SAND_LEDGER1),
@@ -255,9 +334,9 @@ public class IlpInMemoryTestHarness {
         // Sender has sent money, so that account should be reduced.
         assertLedgerAccount(sandLedger1, ALICE, "475");
         //receiver, and connector should have the initial amounts because the transfer is in a pending state.
-        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
         // Connector should not have any extra funds because it was not involved.
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
         // Escrow should be SND 25 to reflect escrowed funds in each ledger.
         assertLedgerAccount(sandLedger1, ESCROW, "25");
 
@@ -268,9 +347,9 @@ public class IlpInMemoryTestHarness {
         assertLedgerAccount(sandLedger1, ALICE, "475");
         assertLedgerAccount(sandLedger1, BOB, "525");
         // Connector should not have any extra funds because it was not involved.
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
         // Escrow should be SND 0 to reflect executed escrow.
-        assertLedgerAccount(sandLedger1, ESCROW, "0");
+        assertLedgerAccount(sandLedger1, ESCROW, ZERO_AMOUNT);
     }
 
     /**
@@ -279,8 +358,6 @@ public class IlpInMemoryTestHarness {
      */
     @Test
     public void testScenario1_RecipientRejectsTransfer() {
-        when(quotingServiceMock.findBestConnector(any())).thenReturn(
-                Optional.of(this.fluidConnector.getConnectorInfo()));
 
         final DefaultLedgerTransfer ledgerTransfer =
                 new DefaultLedgerTransfer(
@@ -295,9 +372,9 @@ public class IlpInMemoryTestHarness {
         // Sender has sent money, so that account should be reduced.
         assertLedgerAccount(sandLedger1, ALICE, "475");
         //receiver, and connector should have the initial amounts because the transfer is in a pending state.
-        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
         // Connector should not have any extra funds because it was not involved.
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
         // Escrow should be SND 25 to reflect escrowed funds in each ledger.
         assertLedgerAccount(sandLedger1, ESCROW, "25");
 
@@ -308,12 +385,12 @@ public class IlpInMemoryTestHarness {
         );
 
         // Neither sender nor receiver should have a different amount of funds because the transaction was reversed.
-        assertLedgerAccount(sandLedger1, ALICE, "500");
-        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger1, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
         // Connector should not have any extra funds because it was not involved.
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
         // Escrow should be SND 0.00 because the escrow tx was reversed.
-        assertLedgerAccount(sandLedger1, ESCROW, "0");
+        assertLedgerAccount(sandLedger1, ESCROW, ZERO_AMOUNT);
     }
 
     /**
@@ -345,11 +422,7 @@ public class IlpInMemoryTestHarness {
      * @see "https://github.com/interledger/rfcs/blob/master/0003-interledger-protocol/0003-interledger-protocol.md#without-holds-optimistic-mode"
      */
     @Test
-    public void testScenario2_DifferentLedgerWithSameAssetType_SenderAcceptsPayment() {
-        //Mock the QuotingService for now...
-        //TODO: eventually this will be replaced with a real service that integrates with routing.
-        when(quotingServiceMock.findBestConnector(any())).thenReturn(
-                Optional.of(this.fluidConnector.getConnectorInfo()));
+    public void testScenario2_OneConnector_LedgersWithSameAssetType_SenderAcceptsPayment() {
 
         // Step1: Assemble and send an amount of SND to Bob on the Sand2 Ledger.
         final LedgerTransfer ledgerTransfer = new DefaultLedgerTransfer(
@@ -357,6 +430,8 @@ public class IlpInMemoryTestHarness {
                 IlpAddress.of(BOB, SAND_LEDGER2),
                 Money.of(100, "SND")
         );
+
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
 
         // SandLedger 2 is configured to automatically accept any payment and fulfill the condition, so there's nothing
         // more to do here except wait for the synchronous #send call to finish.  In a real system, the processing would
@@ -366,13 +441,13 @@ public class IlpInMemoryTestHarness {
         // Sender has sent money, so that account should be reduced.
         assertLedgerAccount(sandLedger1, ALICE, "400");
         // Alice's account on Ledger2 should not be affected.
-        assertLedgerAccount(sandLedger2, ALICE, "500");
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
         //receiver, and connector should have the initial amounts because the transfer is in a pending state.
-        assertLedgerAccount(sandLedger1, BOB, "500");
-        assertLedgerAccount(sandLedger2, BOB, "500");
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
         // The connector on SandLedger2 funded the escrow on SL2.
-        assertLedgerAccount(sandLedger2, CONNECTOR, "400");
+        assertLedgerAccount(sandLedger2, CONNECTOR1, "400");
         // Escrow should be SND 100 to reflect escrowed funds in each ledger.
         assertLedgerAccount(sandLedger1, ESCROW, "100");
         assertLedgerAccount(sandLedger2, ESCROW, "100");
@@ -384,16 +459,16 @@ public class IlpInMemoryTestHarness {
         // belonging to the same person on other ledgers should be unchanged.
         assertLedgerAccount(sandLedger1, ALICE, "400");
         assertLedgerAccount(sandLedger2, BOB, "600");
-        assertLedgerAccount(sandLedger2, ALICE, "500");
-        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
 
         // Connector should have SND 100 extra funds because was paid on ledger1 and debited on ledger2.
-        assertLedgerAccount(sandLedger1, CONNECTOR, "600");
-        assertLedgerAccount(sandLedger2, CONNECTOR, "400");
+        assertLedgerAccount(sandLedger1, CONNECTOR1, "600");
+        assertLedgerAccount(sandLedger2, CONNECTOR1, "400");
 
         // Escrow should be SND 0 to reflect executed escrows in each ledger.
-        assertLedgerAccount(sandLedger1, ESCROW, "0");
-        assertLedgerAccount(sandLedger2, ESCROW, "0");
+        assertLedgerAccount(sandLedger1, ESCROW, ZERO_AMOUNT);
+        assertLedgerAccount(sandLedger2, ESCROW, ZERO_AMOUNT);
     }
 
     /**
@@ -426,12 +501,7 @@ public class IlpInMemoryTestHarness {
      * @see "https://github.com/interledger/rfcs/blob/master/0003-interledger-protocol/0003-interledger-protocol.md#without-holds-optimistic-mode"
      */
     @Test
-    public void testScenario2_DifferentLedgerWithSameAssetType_SenderRejectsPayment() {
-        //Mock the QuotingService for now...
-        //TODO: eventually this will be replaced with a real service that integrates with routing.
-        when(quotingServiceMock.findBestConnector(any())).thenReturn(
-                Optional.of(this.fluidConnector.getConnectorInfo()));
-
+    public void testScenario2_OneConnector_LedgersWithSameAssetType_SenderRejectsPayment() {
         // Step1: Assemble and send an amount of SND to Bob on the Sand2 Ledger.
         final LedgerTransfer ledgerTransfer = new DefaultLedgerTransfer(
                 IlpAddress.of(ALICE, SAND_LEDGER1),
@@ -447,13 +517,13 @@ public class IlpInMemoryTestHarness {
         // Sender has sent money, so that account should be reduced.
         assertLedgerAccount(sandLedger1, ALICE, "400");
         // Alice's account on Ledger2 should not be affected.
-        assertLedgerAccount(sandLedger2, ALICE, "500");
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
         //receiver, and connector should have the initial amounts because the transfer is in a pending state.
-        assertLedgerAccount(sandLedger1, BOB, "500");
-        assertLedgerAccount(sandLedger2, BOB, "500");
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
         // The connector on SandLedger2 funded the escrow on SL2.
-        assertLedgerAccount(sandLedger2, CONNECTOR, "400");
+        assertLedgerAccount(sandLedger2, CONNECTOR1, "400");
         // Escrow should be SND 100 to reflect escrowed funds in each ledger.
         assertLedgerAccount(sandLedger1, ESCROW, "100");
         assertLedgerAccount(sandLedger2, ESCROW, "100");
@@ -465,19 +535,122 @@ public class IlpInMemoryTestHarness {
         );
 
         // Sender and receiver should have their original amounts because the transfer was rejected and reversed.
-        assertLedgerAccount(sandLedger1, ALICE, "500");
-        assertLedgerAccount(sandLedger2, BOB, "500");
-        assertLedgerAccount(sandLedger2, ALICE, "500");
-        assertLedgerAccount(sandLedger1, BOB, "500");
+        assertLedgerAccount(sandLedger1, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
 
         // Connector should have their original amounts because the transfer was rejected and reversed.
-        assertLedgerAccount(sandLedger1, CONNECTOR, "500");
-        assertLedgerAccount(sandLedger2, CONNECTOR, "500");
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR1, INITIAL_AMOUNT);
 
         // Escrow should be SND 0 to reflect reversed escrows in each ledger.
-        assertLedgerAccount(sandLedger1, ESCROW, "0");
-        assertLedgerAccount(sandLedger2, ESCROW, "0");
+        assertLedgerAccount(sandLedger1, ESCROW, ZERO_AMOUNT);
+        assertLedgerAccount(sandLedger2, ESCROW, ZERO_AMOUNT);
     }
+
+    /**
+     * This test simulates a fixed-source-amount payment from one account to another on different ledgers that share the
+     * same asset type, connected by a two connectors, where the final recipient accepts the transfer.  In this case,
+     * Alice will send SND 100 from {@code sandLedger1} to Bob's account on {@code sandLedger2} via two Fluid
+     * Connectors, FluidConnector1 and FluidConnector2.
+     * <p>
+     * FluidConnector1 has an accounts on the SandLedger1 and SandLedger2.  FluidConnector2 has accounts on the
+     * SandLedger2 and SandLedger3.  In order to complete the transaction, ILP activity will need to occur on all three
+     * ledgers.
+     * <p>
+     * This test operates as follows:
+     * <p>
+     * <pre>
+     *  <ol>
+     *      <li>The sending application (this test) chooses an amount (SND 100) and calls on its local interledger
+     * module (in this case an instance of {@link Ledger}) on SandLedger1 to send that amount from Alice to an escrow
+     * account operated
+     * by the ledger, with an ultimate destination of Bob's account on SandLedger3.</li>
+     *      <li>SandLedger1 determines that it cannot service the transfer locally, and polls any connectors that are
+     * connected to it to determine if they can process the payment.</li>
+     * <li>Connector1 responds that it can fulfill the transfer.</li>
+     * <li>The connector initiates an ILP transaction on SandLedger2 with the appropriate amount.</li>
+     * <li>SandLedger2 escrows the amount for the recipient and notifies Connector2.</li>
+     * <li>Connector2 has an account on SandLedger3, and sends money to BOB.</li>
+     * <li>Bob accepts the transfer, and the Connector2 is notified.</li>
+     * <li>Connector2 receives the notification and fulfills its transfer on Ledger2, which notifies Connector1.</li>
+     * <li>Connector1 receives the notification and fulfills its transfer on Ledger1.</li>
+     * <li>Ledger1 executes the final escrow, releasing money to Connector1's account and the ILP transacation is
+     * complete.</li>
+     *  </ol>
+     * </pre>
+     *
+     * @see "https://github.com/interledger/rfcs/blob/master/0003-interledger-protocol/0003-interledger-protocol.md#without-holds-optimistic-mode"
+     */
+    @Test
+    public void testScenario2_TwoConnectors_LedgersWithSameAssetType_SenderAcceptsPayment() {
+
+        // Step1: Assemble and send an amount of SND to Bob on the Sand2 Ledger.
+        final LedgerTransfer ledgerTransfer = new DefaultLedgerTransfer(
+                IlpAddress.of(ALICE, SAND_LEDGER1),
+                IlpAddress.of(BOB, SAND_LEDGER3),
+                Money.of(100, "SND")
+        );
+
+        // SandLedger 3 is configured to automatically accept any payment and fulfill the condition, so there's nothing
+        // more to do here except wait for the synchronous #send call to finish.  In a real system, the processing would
+        // be async, so for a true integration test/simulation we would need to wait some time before checking assertions.
+        sandLedger1.send(ledgerTransfer);
+
+        // Sender has sent money from ledger1, but her accounts on other ledgers should be left untouched.
+        assertLedgerAccount(sandLedger1, ALICE, "400");
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, ALICE, INITIAL_AMOUNT);
+
+        // Receivers accounts should not be affected until he accepts the transfer.
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, BOB, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR1, "400");
+        assertLedgerAccount(sandLedger3, CONNECTOR1, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, CONNECTOR2, "400");
+
+        // Escrows on all ledgers are funded...
+        assertLedgerAccount(sandLedger1, ESCROW, "100");
+        assertLedgerAccount(sandLedger2, ESCROW, "100");
+        assertLedgerAccount(sandLedger3, ESCROW, "100");
+
+        // Simulate BOB accepting funds on Ledger 3.
+        sandLedger3.fulfillCondition(ledgerTransfer.getInterledgerPacketHeader().getIlpTransactionId());
+
+        // Sender has sent money from ledger1, but her accounts on other ledgers should be left untouched.
+        assertLedgerAccount(sandLedger1, ALICE, "400");
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, ALICE, INITIAL_AMOUNT);
+
+        // Receivers accounts should not be affected until he accepts the transfer.
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, BOB, "600");
+
+        assertLedgerAccount(sandLedger1, CONNECTOR1, "600");
+        assertLedgerAccount(sandLedger2, CONNECTOR1, "400");
+        assertLedgerAccount(sandLedger3, CONNECTOR1, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR2, "600");
+        assertLedgerAccount(sandLedger3, CONNECTOR2, "400");
+
+        // Escrows on all ledgers are executed...
+        assertLedgerAccount(sandLedger1, ESCROW, ZERO_AMOUNT);
+        assertLedgerAccount(sandLedger2, ESCROW, ZERO_AMOUNT);
+        assertLedgerAccount(sandLedger3, ESCROW, ZERO_AMOUNT);
+    }
+
+
+    // testScenario2_OneConnector_LedgersWithSameAssetType_SenderRejectsPayment
+    // testScenario2_OneConnector_LedgersWithSameAssetType_MiddleConnectorFailsFulfilment
 
 
     // TODO: Create a test that exercises the routing table.  For example, if two connectors are connected to a ledger and
@@ -495,29 +668,59 @@ public class IlpInMemoryTestHarness {
      * TODO: eventually this will be replaced with a real routing service that integrates with quoting.
      */
     private void initializeMockRoutingService() {
-        // These are merely simply routes to enable the test harness so we don't have to implement the entire routing library.
-        final DefaultRoute defaultRouteToAliceAtSand1 = DefaultRoute.builder()
-                .sourceAddress(IlpAddress.of(CONNECTOR, SAND_LEDGER1))
-                .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER1))
-                .optExpiresAt(Optional.empty())
-                .build();
-        final DefaultRoute defaultRouteToBobAtSand1 = DefaultRoute.builder()
-                .sourceAddress(IlpAddress.of(CONNECTOR, SAND_LEDGER1))
-                .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER1))
-                .optExpiresAt(Optional.empty())
-                .build();
-        final DefaultRoute defaultRouteToBobAtSand2 = DefaultRoute.builder()
-                .sourceAddress(IlpAddress.of(CONNECTOR, SAND_LEDGER2))
-                .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER2))
-                .optExpiresAt(Optional.empty())
-                .build();
 
-        when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(ALICE, SAND_LEDGER1)), any()))
-                .thenReturn(Optional.of(defaultRouteToAliceAtSand1));
-        when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(BOB, SAND_LEDGER1)), any()))
-                .thenReturn(Optional.of(defaultRouteToBobAtSand1));
-        when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(BOB, SAND_LEDGER2)), any()))
-                .thenReturn(Optional.of(defaultRouteToBobAtSand2));
+        ///////////////////////////////
+        // Routing Table for Connector1
+        ///////////////////////////////
+
+        // These are merely simple routes to enable the test harness so we don't have to implement the entire routing
+        // implementation until later.
+        {
+            final RoutingService routingServiceMock = connector1RoutingServiceMock;
+
+            // While on Connector1, the only way to get funds to Bob on SL1 is to send to Connector1 on SL1.
+//            final DefaultRoute defaultRouteToBobAtSand1 = DefaultRoute.builder()
+//                    .sourceAddress(IlpAddress.of(CONNECTOR1, SAND_LEDGER1))
+//                    .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER1))
+//                    .optExpiresAt(Optional.empty())
+//                    .build();
+//            when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(BOB, SAND_LEDGER1)), any()))
+//                    .thenReturn(Optional.of(defaultRouteToBobAtSand1));
+
+            // While on Connector1, the only way to get funds to Bob on SL2 is to send from Connector1 on SL2.
+            final DefaultRoute defaultRouteToBobAtSand2 = DefaultRoute.builder()
+                    .sourceAddress(IlpAddress.of(CONNECTOR1, SAND_LEDGER2))
+                    .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER2))
+                    .optExpiresAt(Optional.empty())
+                    .build();
+            when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(BOB, SAND_LEDGER2)), any()))
+                    .thenReturn(Optional.of(defaultRouteToBobAtSand2));
+
+            // While on Connector1, the only way to get funds to Bob on SL3 is to send from Connector2 on SL2.
+            final DefaultRoute defaultRouteToBobAtSand3 = DefaultRoute.builder()
+                    .sourceAddress(IlpAddress.of(CONNECTOR2, SAND_LEDGER2))
+                    .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER3))
+                    .optExpiresAt(Optional.empty())
+                    .build();
+            when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(BOB, SAND_LEDGER3)), any()))
+                    .thenReturn(Optional.of(defaultRouteToBobAtSand3));
+        }
+        ///////////////////////////////
+        // Routing Table for Connector2
+        ///////////////////////////////
+
+        {
+            // While on Connector2, the only way to get funds to Bob on SL3 is to send from Connector2 on SL3.
+            final RoutingService routingServiceMock = connector2RoutingServiceMock;
+            final DefaultRoute defaultRouteToBobAtSand3 = DefaultRoute.builder()
+                    .sourceAddress(IlpAddress.of(CONNECTOR2, SAND_LEDGER3))
+                    .destinationAddress(IlpAddress.of(BOB, SAND_LEDGER3))
+                    .optExpiresAt(Optional.empty())
+                    .build();
+            when(routingServiceMock.bestHopForDestinationAmount(eq(IlpAddress.of(BOB, SAND_LEDGER3)), any()))
+                    .thenReturn(Optional.of(defaultRouteToBobAtSand3));
+        }
+
     }
 
     /**
@@ -532,7 +735,9 @@ public class IlpInMemoryTestHarness {
         this.initializeLedgerAccountsHelper(
                 ledgerAccountManager, IlpAddress.of(CHLOE, ledgerAccountManager.getLedgerInfo().getLedgerId()));
         this.initializeLedgerAccountsHelper(
-                ledgerAccountManager, IlpAddress.of(CONNECTOR, ledgerAccountManager.getLedgerInfo().getLedgerId()));
+                ledgerAccountManager, IlpAddress.of(CONNECTOR1, ledgerAccountManager.getLedgerInfo().getLedgerId()));
+        this.initializeLedgerAccountsHelper(
+                ledgerAccountManager, IlpAddress.of(CONNECTOR2, ledgerAccountManager.getLedgerInfo().getLedgerId()));
     }
 
     private void initializeLedgerAccountsHelper(
@@ -573,5 +778,17 @@ public class IlpInMemoryTestHarness {
         assertThat(ledgerAccount.getBalance(), is(expectedAmount)
                    //is(Money.of(new BigDecimal("475.00"), SND))
         );
+    }
+
+    /**
+     * Mock the QuotingService for now.
+     * TODO: eventually this will be replaced with a real service that integrates with routing.
+     */
+    private void initializeMockQuotingServices() {
+        when(sandLedger1QuotingServiceMock.findBestConnector(any())).thenReturn(
+                Optional.of(this.fluidConnector1.getConnectorInfo()));
+
+        when(sandLedger2QuotingServiceMock.findBestConnector(any())).thenReturn(
+                Optional.of(this.fluidConnector2.getConnectorInfo()));
     }
 }

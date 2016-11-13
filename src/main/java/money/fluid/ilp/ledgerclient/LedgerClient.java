@@ -1,6 +1,7 @@
 package money.fluid.ilp.ledgerclient;
 
 import money.fluid.ilp.connector.model.ids.IlpTransactionId;
+import money.fluid.ilp.ledger.model.ConnectionInfo;
 import org.interledger.cryptoconditions.Fulfillment;
 import org.interledgerx.ilp.core.Ledger;
 import org.interledgerx.ilp.core.LedgerInfo;
@@ -24,7 +25,14 @@ import org.interledgerx.ilp.core.events.LedgerEventHandler;
 public interface LedgerClient {
 
     /**
-     * Retrieve some meta-data about the ledger that this client is connected to.
+     * Connector-supplied connection information used to connect to a Ledger.
+     *
+     * @return
+     */
+    ConnectionInfo getConnectionInfo();
+
+    /**
+     * Ledger-supplied meta-data about the ledger that this client is connected to.
      *
      * @return <code>LedgerInfo</code>
      */

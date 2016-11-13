@@ -22,6 +22,7 @@ import money.fluid.ilp.ledger.inmemory.utils.MoneyUtils;
 import money.fluid.ilp.ledger.model.ConnectionInfo;
 import money.fluid.ilp.ledger.model.ConnectorInfo;
 import money.fluid.ilp.ledger.model.LedgerAccount;
+import money.fluid.ilp.ledger.model.LedgerId;
 import org.interledger.cryptoconditions.Fulfillment;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.Ledger;
@@ -50,8 +51,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * An implementation of {@link Ledger} that simulates a real ledger supporting ILP functionality.  Ordinarily, a ledger
- * would operate in its own ledger-space, and would implement the {@link Ledger} interface to provide external
+ * An implementation of {@link Ledger} that simulates a real ledgerInfo supporting ILP functionality.  Ordinarily, a ledgerInfo
+ * would operate in its own ledgerInfo-space, and would implement the {@link Ledger} interface to provide external
  * connectivity.  This implementation runs "in-memory", so its event emissions don't need to involve any RPCs.
  */
 @RequiredArgsConstructor
@@ -59,7 +60,7 @@ import java.util.UUID;
 @EqualsAndHashCode
 public class InMemoryLedger implements Ledger {
 
-    // TODO: In a real ledger, should be configurable.
+    // TODO: In a real ledgerInfo, should be configurable.
     private static final LedgerAccountId ESCROW = LedgerAccountId.of("__escrow__");
 
     @NonNull
@@ -98,7 +99,7 @@ public class InMemoryLedger implements Ledger {
         this.ledgerConnectionManager = new InMemoryLedgerConnectionManager(this.getLedgerInfo());
         this.ledgerAccountManager = new InMemoryLedgerAccountManager(ledgerInfo);
 
-        // Create an Escrow Account in this ledger...
+        // Create an Escrow Account in this ledgerInfo...
         final IlpAddress escrowAccountAddress = IlpAddress.of(ESCROW, ledgerInfo.getLedgerId());
         this.getLedgerAccountManager().createAccount(escrowAccountAddress);
         this.escrowManager = new EscrowManager(
@@ -109,7 +110,7 @@ public class InMemoryLedger implements Ledger {
      * Initiate an ILP transfer.  This implementation assumes that all transfers involve a connector.  If a
      * particular transfer doesn't involve a connector, then this method should not be invoked.
      * <p>
-     * TODO: What if a ledger wants to offer local ILP-type transaction services?  Should this be allowed?  For example,
+     * TODO: What if a ledgerInfo wants to offer local ILP-type transaction services?  Should this be allowed?  For example,
      * couldn't BankX just transfer funds from one ILP address to another in some other process without involving
      * this Ledger implementation (in other words, without involving ILP at all?)
      */
@@ -122,7 +123,7 @@ public class InMemoryLedger implements Ledger {
         //////////////
         if (this.getLedgerAccountManager().isLocallyServiced(
                 transfer.getInterledgerPacketHeader().getDestinationAddress())) {
-            // Here, the ledger itself can compute the local accounts for the sender and receiver.
+            // Here, the ledgerInfo itself can compute the local accounts for the sender and receiver.
             this.sendLocally(transfer);
         } else {
             //////////////
@@ -139,11 +140,11 @@ public class InMemoryLedger implements Ledger {
         // Whether remote or local, we always need to reverse the ILP transaction in optimistic mode transactions...
         final Escrow reversedEscrow = this.escrowManager.reverseEscrow(ilpTransactionId);
 
-        // The ultimate source of the ILP transaction is local to this ledger, so there's no need to involve a connector.
+        // The ultimate source of the ILP transaction is local to this ledgerInfo, so there's no need to involve a connector.
         if (this.getLedgerAccountManager().isLocallyServiced(reversedEscrow.getIlpPacketHeader().getSourceAddress())) {
             // TODO: Notify the Wallet!
         }
-        // The ultimate source of this ILP transaction is non-local, so the ledger needs to notify the appropriate connector
+        // The ultimate source of this ILP transaction is non-local, so the ledgerInfo needs to notify the appropriate connector
         // so that it can pass its fulfillments back up the ILP chain.
         else {
             final LedgerTransferRejectedEvent event = new LedgerTransferRejectedEvent(
@@ -155,7 +156,7 @@ public class InMemoryLedger implements Ledger {
                     ledgerTransferRejectedReason
             );
 
-            // Given a source address (for the Connector) ask the ledger for the connectorId.
+            // Given a source address (for the Connector) ask the ledgerInfo for the connectorId.
             final ConnectorId connectorId = this.getSourceConnector(reversedEscrow);
             this.getLedgerConnectionManager().notifyEventListeners(connectorId, event);
         }
@@ -171,7 +172,7 @@ public class InMemoryLedger implements Ledger {
         // Whether remote or local, we always need to execute the ILP transaction in optimistic mode transactions...
         final Escrow executedEscrow = this.escrowManager.executeEscrow(ilpTransactionId);
 
-        // If the source account was local to _this_ ledger, then we don't need to do anything except notify the
+        // If the source account was local to _this_ ledgerInfo, then we don't need to do anything except notify the
         // connector that they receieved an escrow distribution (?).
         if (this.getLedgerAccountManager().isLocallyServiced(executedEscrow.getIlpPacketHeader().getSourceAddress())) {
             // TODO: Notify the Wallet!
@@ -187,7 +188,7 @@ public class InMemoryLedger implements Ledger {
                     executedEscrow.getAmount()
             );
 
-            // Given a source address (for the Connector) ask the ledger for the connectorId.
+            // Given a source address (for the Connector) ask the ledgerInfo for the connectorId.
             final ConnectorId connectorId = this.getSourceConnector(executedEscrow);
             this.getLedgerConnectionManager().notifyEventListeners(connectorId, event);
         }
@@ -204,12 +205,12 @@ public class InMemoryLedger implements Ledger {
      * TODO: Fix this per https://github.com/fluid-money/ilp-connector-java/issues/1.
      * <p>
      * Rather than making a real-time judgement about which connector can "currently" service the callback
-     * based upon the source address, the ledger likely needs to be tracking the reverse-path of the connector
+     * based upon the source address, the ledgerInfo likely needs to be tracking the reverse-path of the connector
      * so that it can properly send events back to the right connector.  For example, imagine an ILP transfer
-     * that came in via ConnectorA, but by the time the transfer is approved by hte ledger, ConnectorA is no longer
+     * that came in via ConnectorA, but by the time the transfer is approved by hte ledgerInfo, ConnectorA is no longer
      * connected, but ConnectorB provides a "route" back to the ultimate ILP source address.  In this case, ConnectorB
      * won't actually be able to fulfil the payment/rejection, because it wasn't the original connector.  Thus,
-     * the ledger has to inteligently track "pending transfers" just like the Connector does.
+     * the ledgerInfo has to inteligently track "pending transfers" just like the Connector does.
      */
     private ConnectorId getSourceConnector(final Escrow escrow) {  //final IlpTransactionId ilpTransactionId) {
         return this.getLedgerConnectionManager().ledgerEventListeners
@@ -237,7 +238,12 @@ public class InMemoryLedger implements Ledger {
      */
     private Optional<IlpAddress> getLocalLedgerIlpAddressForConnector(final ConnectorId connectorId) {
         Objects.requireNonNull(connectorId);
-        return Optional.of(IlpAddress.of(LedgerAccountId.of(connectorId.getId()), this.getLedgerInfo().getLedgerId()));
+
+        return this.getLedgerAccountManager()
+                .getAccount(
+                        IlpAddress.of(LedgerAccountId.of(connectorId.getId()), this.getLedgerInfo().getLedgerId())
+                )
+                .map(ledgerAccount -> ledgerAccount.getIlpIdentifier());
     }
 
     /**
@@ -269,7 +275,7 @@ public class InMemoryLedger implements Ledger {
             this.escrowManager.initiateEscrow(escrowInputs);
 
             // This implmentation doesn't involve a connector, and therefore doesn't need to send any notifications
-            // because the it assumes that the ledger will handle this in some form or fashion.
+            // because the it assumes that the ledgerInfo will handle this in some form or fashion.
             // TODO: Is this a valid assumption, or does ILP handle this?
         } else {
             throw new InsufficientAmountException(amount.toString());
@@ -287,7 +293,7 @@ public class InMemoryLedger implements Ledger {
         // a LedgerTransfer that contains local account information.
 
 
-        // Find appropriate routable Connector
+        // Find appropriate routeable Connector
         final Optional<ConnectorInfo> optConnectorInfo = quotingService.findBestConnector(transfer);
 
         if (optConnectorInfo.isPresent()) {
@@ -296,9 +302,9 @@ public class InMemoryLedger implements Ledger {
             // PUT Money on-hold from the source, for a Connector...
             this.getLocalLedgerIlpAddressForConnector(connectorInfo.getConnectorId())
                     .map(connectorIlpAddress -> {
-                             // Compute the local source account for the transfer given an ILP source address.  This is
-                             // only stored locally in escrow.
-                             final IlpAddress localSourceAccountId = transfer.getInterledgerPacketHeader().getSourceAddress();
+                             // Compute the local source account for the transfer.  This is going to come from the event.
+                             //final IlpAddress localSourceAccountId = transfer.getInterledgerPacketHeader().getSourceAddress();
+                             final IlpAddress localSourceAccountId = transfer.getLocalSourceAddress();
 
                              // The local destination account for the transfer is the designated Connector's account.  This is
                              // only stored in Escrow.
@@ -381,19 +387,24 @@ public class InMemoryLedger implements Ledger {
     ////////////////////////////
 
     @RequiredArgsConstructor
-    @Getter
     private class InMemoryLedgerAccountManager implements LedgerAccountManager {
 
         @NonNull
+        @Getter
         private final LedgerInfo ledgerInfo;
 
         // Local identifier to account mapping...Consider a Set here?
         @NonNull
         private final Map<IlpAddress, LedgerAccount> accounts;
 
+        // Local identifier to account mapping...Consider a Set here?
+        @NonNull
+        private final Map<ConnectorId, LedgerAccount> connectorAccounts;
+
         private InMemoryLedgerAccountManager(final LedgerInfo ledgerInfo) {
             this.ledgerInfo = Objects.requireNonNull(ledgerInfo);
             this.accounts = new HashMap<>();
+            this.connectorAccounts = new HashMap<>();
         }
 
         /**
@@ -415,9 +426,14 @@ public class InMemoryLedger implements Ledger {
         public Optional<LedgerAccount> getAccount(final IlpAddress ilpAddress)
                 throws InvalidAccountException {
             Objects.requireNonNull(ilpAddress);
+
+            final LedgerId ledgerId = this.getLedgerInfo().getLedgerId();
             Preconditions.checkArgument(
-                    ilpAddress.getLedgerId().equals(this.getLedgerInfo().getLedgerId()),
-                    "Can't retrieve an ILP LedgerAccount for a foreign Ledger!"
+                    ilpAddress.getLedgerId().equals(ledgerId), String.format(
+                            "Can't retrieve account for foreign ILP Address (%s) on Ledger (%s)!",
+                            ilpAddress,
+                            ledgerId
+                    )
             );
 
             return Optional.ofNullable(this.accounts.get(ilpAddress));
@@ -492,7 +508,7 @@ public class InMemoryLedger implements Ledger {
     @RequiredArgsConstructor
     public class InMemoryLedgerConnectionManager implements LedgerConnectionManager {
 
-        // Information about the ledger that this connection manager operates on behalf of.
+        // Information about the ledgerInfo that this connection manager operates on behalf of.
         @NonNull
         @Getter
         private final LedgerInfo ledgerInfo;
@@ -521,7 +537,7 @@ public class InMemoryLedger implements Ledger {
             // that registered the listener.  This could be something like a Webhook, or it could be a direct in-process
             // call.
 
-            // For each ILP connection to this ledger, a LedgerEventListener is added to the list of listeners.  This
+            // For each ILP connection to this ledgerInfo, a LedgerEventListener is added to the list of listeners.  This
             // listener contains one or more handlers that should connect back to the Connector that just connected.  This
             // layer is necessary in order to restrict callbacks/notifications to only the connector that should receive
             // them.
@@ -529,10 +545,10 @@ public class InMemoryLedger implements Ledger {
             final ConnectorInfo connectorInfo = ConnectorInfo.builder()
                     .connectorId(connectionInfo.getConnectorId())
                     // TODO: Determine how the Ledger gets the account of the Connector so that when money is sent by a
-                    // connector to a local destination, the ledger know who to call-back.
-                    .optLedgerAccountId(Optional.of(LedgerAccountId.of("fluid-connector-27"))).build();
+                    // connector to a local destination, the ledgerInfo know who to call-back.
+                    .optLedgerAccountId(Optional.of(LedgerAccountId.of(connectionInfo.getClientId()))).build();
             final LedgerEventListener ledgerEventListener = new InMemoryLedgerEventListener(
-                    this.ledgerInfo, connectorInfo);
+                    this.getLedgerInfo(), connectorInfo);
             this.ledgerEventListeners.put(connectionInfo.getConnectorId(), ledgerEventListener);
         }
 
@@ -558,7 +574,7 @@ public class InMemoryLedger implements Ledger {
         public void registerEventHandler(
                 final ConnectorId connectorId, final LedgerEventHandler ledgerEventHandler
         ) {
-            // If the ledger is present, just add the handler.  Otherwise, throw an exception.
+            // If the ledgerInfo is present, just add the handler.  Otherwise, throw an exception.
 
             final Optional<LedgerEventListener> optLedgerEventListener = Optional.ofNullable(
                     this.ledgerEventListeners.get(connectorId));
@@ -579,29 +595,30 @@ public class InMemoryLedger implements Ledger {
      * An implementation of {@link LedgerEventListener} that allows for a collection of {@link LedgerEventHandler}
      * to be associated to a single Ledger/Connector pair.  This implementation will be used by an {@link
      * InMemoryLedger} to emit all types of {@link LedgerEvent} to a single Connector.  In other words, every
-     * connector that connects to this ledger will have one instances of this class constructed for it, with N
+     * connector that connects to this ledgerInfo will have one instances of this class constructed for it, with N
      * number of handlers found inside.
      * <p>
      * NOTE: Per the docs in {@link LedgerEventListener}, there is a one-to-one relationship between an instance of
-     * this listener, a connector and a ledger (in this case, the single ledger in the in-memory ledger).
-     * Registering instances of {@link LedgerEventHandler} that apply to more than one ledger or connector could
+     * this listener, a connector and a ledgerInfo (in this case, the single ledgerInfo in the in-memory ledgerInfo).
+     * Registering instances of {@link LedgerEventHandler} that apply to more than one ledgerInfo or connector could
      * cause security issues because this implementation notifies all handlers on the assumption that it contains
-     * handlers for only a single connector/ledger pair.
+     * handlers for only a single connector/ledgerInfo pair.
      */
     @Getter
     @RequiredArgsConstructor
     public static class InMemoryLedgerEventListener implements LedgerEventListener {
 
-        // The ledger that this listener is listening to.
+        // The ledgerInfo that this listener is listening to.
         @NonNull
         private final LedgerInfo ledgerInfo;
 
-        // The connector that this listener is listening on behalf of.  This is necessary for the consumers of this listener to properly route events
+        // The connector that this listener is listening on behalf of.  This is necessary for the consumers of this
+        // listener to properly route events
         @NonNull
         private final ConnectorInfo connectorInfo;
 
         // This listener might have a single handler (for all events) or it might have a single handler for each event.
-        // However, this always only connects a single ledger/connector pair.
+        // However, this always only connects a single ledgerInfo/connector pair.
         @NonNull
         private final Set<LedgerEventHandler> ledgerEventHandlers;
 
@@ -632,8 +649,8 @@ public class InMemoryLedger implements Ledger {
 
         @Override
         public void unRegisterEventHandlers() {
-            // TODO: Is this necessary?  There's a contradiction between a Connector being disconnected from a ledger and
-            // a ledger trying to send the disconnected Connector an event that says the disconnect worked.
+            // TODO: Is this necessary?  There's a contradiction between a Connector being disconnected from a ledgerInfo and
+            // a ledgerInfo trying to send the disconnected Connector an event that says the disconnect worked.
             //this.notifyEventHandlers(new LedgerDisonnectedEvent(this.getLedgerInfo(), this.getConnectorInfo()));
 
             // Remove all envet handlers...
@@ -648,7 +665,7 @@ public class InMemoryLedger implements Ledger {
 
         @Override
         public void notifyEventHandlers(final LedgerEvent ledgerEvent) {
-            // Notify all handlers.  If this notify handler is getting called, it means there's an event for this ledger/connector combination.
+            // Notify all handlers.  If this notify handler is getting called, it means there's an event for this ledgerInfo/connector combination.
             for (final LedgerEventHandler handler : this.ledgerEventHandlers) {
                 handler.onLedgerEvent(ledgerEvent);
             }

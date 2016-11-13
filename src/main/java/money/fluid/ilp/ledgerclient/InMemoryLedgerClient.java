@@ -2,6 +2,7 @@ package money.fluid.ilp.ledgerclient;
 
 import com.google.common.base.Preconditions;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
 import money.fluid.ilp.connector.model.ids.IlpTransactionId;
@@ -26,6 +27,7 @@ import java.util.Set;
 @EqualsAndHashCode
 public class InMemoryLedgerClient implements LedgerClient {
     @NonNull
+    @Getter
     private final ConnectionInfo connectionInfo;
 
     // Strongly-typed to require an InMemoryLedger because this implementation requires functionality for RPC simulation

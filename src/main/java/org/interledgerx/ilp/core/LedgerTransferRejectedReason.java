@@ -3,5 +3,6 @@ package org.interledgerx.ilp.core;
 public enum LedgerTransferRejectedReason {
     REJECTED_BY_RECEIVER,
     TIMEOUT,
-    UNABLE_TO_VALIDATE_CONDITION
+    UNABLE_TO_VALIDATE_CONDITION,
+    NO_ROUTE_TO_LEDGER
 }

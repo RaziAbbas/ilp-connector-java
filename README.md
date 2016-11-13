@@ -58,7 +58,7 @@ A payment from one account to another on different ledgers that have same asset 
   * -[ ] Universal Mode
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__MULTIPLE_CONNECTORS__ACCEPTED**
 A payment from one account to another on different ledgers that have the same asset type, and where the transfer involves more than one Connector, and where recipient accepts the payment.
-  * -[ ] Optimistic Mode
+  * -[x] Optimistic Mode
   * -[ ] Universal Mode
 * **DIFFERENT_LEDGERS__SAME_ASSET_TYPE__MULTIPLE_CONNECTORS__REJECTED**
 A payment from one account to another on different ledgers that have same asset type, and where the transfer involves more than one Connector, and where the recipient rejects the payment.

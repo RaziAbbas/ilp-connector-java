@@ -1,11 +1,10 @@
 package org.interledgerx.ilp.core;
 
+import money.fluid.ilp.connector.model.ids.LedgerAccountId;
 import money.fluid.ilp.ledger.model.LedgerId;
 
 /**
- * Metadata describing the ledger.
- * <p>
- * This data is returned by the LedgerPlugin.getLedgerInfo() method.
+ * Metadata describing the ledger, as returned from the Ledger.
  */
 public interface LedgerInfo {
 
@@ -43,5 +42,4 @@ public interface LedgerInfo {
      * @return
      */
     LedgerId getLedgerId();
-
 }
