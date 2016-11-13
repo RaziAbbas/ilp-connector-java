@@ -648,8 +648,84 @@ public class IlpInMemoryTestHarness {
         assertLedgerAccount(sandLedger3, ESCROW, ZERO_AMOUNT);
     }
 
+    /**
+     * This test simulates a fixed-source-amount payment from one account to another on different ledgers that share the
+     * same asset type, connected by a two connectors, where the final recipient rejects the transfer.  In this case,
+     * Alice will send SND 100 from {@code sandLedger1} to Bob's account on {@code sandLedger2} via two Fluid
+     * Connectors, FluidConnector1 and FluidConnector2.
+     * <p>
+     * FluidConnector1 has an accounts on the SandLedger1 and SandLedger2.  FluidConnector2 has accounts on the
+     * SandLedger2 and SandLedger3.  In order to complete the transaction, ILP activity will need to occur on all three
+     * ledgers.
+     */
+    @Test
+    public void testScenario2_TwoConnectors_LedgersWithSameAssetType_SenderRejectsPayment() {
 
-    // testScenario2_OneConnector_LedgersWithSameAssetType_SenderRejectsPayment
+        // Step1: Assemble and send an amount of SND to Bob on the Sand2 Ledger.
+        final LedgerTransfer ledgerTransfer = new DefaultLedgerTransfer(
+                IlpAddress.of(ALICE, SAND_LEDGER1),
+                IlpAddress.of(BOB, SAND_LEDGER3),
+                Money.of(100, "SND")
+        );
+
+        // SandLedger 3 is configured to automatically accept any payment and fulfill the condition, so there's nothing
+        // more to do here except wait for the synchronous #send call to finish.  In a real system, the processing would
+        // be async, so for a true integration test/simulation we would need to wait some time before checking assertions.
+        sandLedger1.send(ledgerTransfer);
+
+        // Sender has sent money from ledger1, but her accounts on other ledgers should be left untouched.
+        assertLedgerAccount(sandLedger1, ALICE, "400");
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, ALICE, INITIAL_AMOUNT);
+
+        // Receivers accounts should not be affected until he accepts the transfer.
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, BOB, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR1, "400");
+        assertLedgerAccount(sandLedger3, CONNECTOR1, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, CONNECTOR2, "400");
+
+        // Escrows on all ledgers are funded...
+        assertLedgerAccount(sandLedger1, ESCROW, "100");
+        assertLedgerAccount(sandLedger2, ESCROW, "100");
+        assertLedgerAccount(sandLedger3, ESCROW, "100");
+
+        // Simulate BOB accepting funds on Ledger 3.
+        sandLedger3.rejectTransfer(
+                ledgerTransfer.getInterledgerPacketHeader().getIlpTransactionId(),
+                LedgerTransferRejectedReason.REJECTED_BY_RECEIVER
+        );
+
+        // Sender has sent money from ledger1, but her accounts on other ledgers should be left untouched.
+        assertLedgerAccount(sandLedger1, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, ALICE, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, ALICE, INITIAL_AMOUNT);
+
+        // Receivers accounts should not be affected until he accepts the transfer.
+        assertLedgerAccount(sandLedger1, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, BOB, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, BOB, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR1, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR1, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, CONNECTOR1, INITIAL_AMOUNT);
+
+        assertLedgerAccount(sandLedger1, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger2, CONNECTOR2, INITIAL_AMOUNT);
+        assertLedgerAccount(sandLedger3, CONNECTOR2, INITIAL_AMOUNT);
+
+        // Escrows on all ledgers are executed...
+        assertLedgerAccount(sandLedger1, ESCROW, ZERO_AMOUNT);
+        assertLedgerAccount(sandLedger2, ESCROW, ZERO_AMOUNT);
+        assertLedgerAccount(sandLedger3, ESCROW, ZERO_AMOUNT);
+    }
+
     // testScenario2_OneConnector_LedgersWithSameAssetType_MiddleConnectorFailsFulfilment
 
 
