@@ -49,6 +49,13 @@ public interface LedgerClient {
     void disconnect();
 
     /**
+     * Indicates if this {@link LedgerClient} is currently connected to a ledger.
+     *
+     * @return
+     */
+    boolean isConnected();
+
+    /**
      * Initiates a ledger-local transfer to start an ILP transaction.
      *
      * @param transfer <code>LedgerTransfer</code>
@@ -92,5 +99,4 @@ public interface LedgerClient {
      * @param handler An instance of {@link LedgerEventHandler} that will handle events emitted from a {@link Ledger}.
      */
     void registerEventHandler(LedgerEventHandler<?> handler);
-
 }

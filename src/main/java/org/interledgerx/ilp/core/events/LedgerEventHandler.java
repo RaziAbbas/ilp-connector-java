@@ -2,6 +2,8 @@ package org.interledgerx.ilp.core.events;
 
 import money.fluid.ilp.connector.Connector;
 import money.fluid.ilp.connector.model.ids.ConnectorId;
+import money.fluid.ilp.connector.model.ids.IlpTransactionId;
+import money.fluid.ilp.ledger.model.LedgerId;
 import org.interledgerx.ilp.core.LedgerInfo;
 
 /**
@@ -30,5 +32,4 @@ public interface LedgerEventHandler<T extends LedgerEvent> {
     Connector getListeningConnector();
 
     LedgerInfo getSourceLedgerInfo();
-
 }

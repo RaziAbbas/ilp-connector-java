@@ -24,6 +24,7 @@
         <docker.image.prefix>ilp-connector-java</docker.image.prefix>
         <appengine.sdk.version>1.9.42</appengine.sdk.version>
         <jackson.version>2.8.2</jackson.version>
+        <guava.version>20.0</guava.version>
     </properties>
 
     <repositories>
@@ -218,6 +219,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-testlib</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
         <!--<dependency>-->
         <!--<groupId>org.interledger</groupId>-->
         <!--<artifactId>java-ilp-ledger-simple</artifactId>-->
@@ -309,7 +316,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>20.0</version>
+            <version>${guava.version}</version>
         </dependency>
 
         <dependency>

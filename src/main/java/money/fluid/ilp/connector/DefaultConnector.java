@@ -2,18 +2,19 @@ package money.fluid.ilp.connector;
 
 import lombok.Getter;
 import lombok.ToString;
-import money.fluid.ilp.connector.model.ids.IlpTransactionId;
+import money.fluid.ilp.connector.managers.ledgers.LedgerManager;
 import money.fluid.ilp.connector.services.routing.Route;
 import money.fluid.ilp.connector.services.routing.RoutingService;
 import money.fluid.ilp.ledger.inmemory.events.AbstractEventBusLedgerEventHandler;
-import money.fluid.ilp.ledger.inmemory.model.DefaultLedgerTransfer;
+import money.fluid.ilp.ledger.inmemory.model.DeliveredLedgerTransferImpl;
+import money.fluid.ilp.ledger.inmemory.model.ForwardedLedgerTransferImpl;
 import money.fluid.ilp.ledger.model.ConnectorInfo;
 import money.fluid.ilp.ledger.model.LedgerId;
-import money.fluid.ilp.ledger.model.NoteToSelf;
 import money.fluid.ilp.ledgerclient.LedgerClient;
+import org.interledgerx.ilp.core.DeliveredLedgerTransfer;
+import org.interledgerx.ilp.core.ForwardedLedgerTransfer;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.LedgerInfo;
-import org.interledgerx.ilp.core.LedgerTransfer;
 import org.interledgerx.ilp.core.LedgerTransferRejectedReason;
 import org.interledgerx.ilp.core.events.LedgerConnectedEvent;
 import org.interledgerx.ilp.core.events.LedgerDirectTransferEvent;
@@ -25,50 +26,38 @@ import org.interledgerx.ilp.core.events.LedgerTransferRejectedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /**
- * A default implementation of an ILP {@link Connector}.
+ * A default implementation of an Interledger {@link Connector}.
+ *
+ * @see "http://www.interledger.org"
  */
 @Getter
 @ToString
 public class DefaultConnector implements Connector {
     private final ConnectorInfo connectorInfo;
 
-    // Specified at Connector initialization time, these are all ledgers that this Connector can connect to...required in
-    // order for a Connector to move money along a given Route.
-    private final Set<LedgerClient> ledgerClients;
-
     private final RoutingService routingService;
 
-    //The Connector needs to track the pending transfers, not the event handlers.  This is because event handler1 will
-    // receive a transfer for 1 ledger and make another transfer on another ledger.  When the transfer executes, the 2nd
-    // handler won't have the originating ledger's info, so it gets it from here.
-    // TODO: Consider holding the entire transfer here, or loading-cache that is backed by a Database.
-    // TODO: This should be backed by a datastore since these transfers should not be lost until they are expired or fulfilled.
-    private final Map<IlpTransactionId, NoteToSelf> pendingTransfers;
+    private final LedgerManager ledgerManager;
 
     /**
      * Required-args Constructor.  Allows for full DI support of all dependencies.
      *
      * @param connectorInfo
-     * @param ledgerClients
      * @param routingService
+     * @param ledgerManager
      */
     public DefaultConnector(
             final ConnectorInfo connectorInfo,
-            final Set<LedgerClient> ledgerClients,
-            final RoutingService routingService
+            final RoutingService routingService,
+            final LedgerManager ledgerManager
     ) {
         this.connectorInfo = Objects.requireNonNull(connectorInfo);
-        this.ledgerClients = Objects.requireNonNull(ledgerClients);
         this.routingService = Objects.requireNonNull(routingService);
-
-        this.pendingTransfers = new HashMap<>();
+        this.ledgerManager = Objects.requireNonNull(ledgerManager);
 
         this.initialize();
     }
@@ -80,7 +69,7 @@ public class DefaultConnector implements Connector {
         // The Connector has a set of Ledgers that are pre-configured.  This initializer registers a LedgerEventHandler
         // with each one.  Alternative implementations might register N event handlers per Connector (e.g., a handler to
         // handle each event instead of a single handler that handles all events).
-        this.ledgerClients.stream().forEach(
+        this.getLedgerManager().getLedgerClients().stream().forEach(
                 ledgerClient -> {
                     // Establish a connection first...
                     ledgerClient.connect();
@@ -92,20 +81,37 @@ public class DefaultConnector implements Connector {
     @Override
     public void shutdown() {
         // Shutdown any connections...
-        this.ledgerClients.stream().forEach((LedgerClient::disconnect));
+        this.getLedgerManager().getLedgerClients().stream().forEach((LedgerClient::disconnect));
     }
 
     /**
-     * Helper method to determine which ledger client should be used for a given {@link IlpAddress}.
+     * Determines if a given {@link IlpAddress} has a routing table entry that names a local ledger.  In other words,
+     * _this_ connector has direct access to the destination address's ledger.
      *
-     * @param ledgerId
-     * @return
+     * @param destinationAddress An instance of {@link IlpAddress} representing the ultimate destination of an ILP
+     *                           transfer.
+     * @return {@code true} if {@link Route#getDestinationAddress()} exists in a ledger that this Connector has an
+     * actively connected LedgerClient for; {@code false} otherwise.
+     * @see "https://github.com/interledger/rfcs/issues/77"
      */
-    public Optional<LedgerClient> findLedgerClient(final LedgerId ledgerId) {
-        Objects.requireNonNull(ledgerId);
-        return this.getLedgerClients().stream()
-                .filter(ledgerClient -> ledgerClient.getLedgerInfo().getLedgerId().equals(ledgerId))
-                .findFirst();
+    public boolean isTransferLocallyDeliverable(final IlpAddress destinationAddress) {
+        Objects.requireNonNull(destinationAddress);
+        return this.getLedgerManager().findLedgerClient(destinationAddress.getLedgerId()).isPresent();
+    }
+
+    /**
+     * Determines if a given {@link IlpAddress} has a routing table entry that names another connector.  In other words,
+     * _this_ connector has no direct access to the destination address's ledger.
+     *
+     * @param destinationAddress An instance of {@link IlpAddress} representing the ultimate destination of an ILP
+     *                           transfer.
+     * @return {@code true} if {@code destinationAddress} exists in a route that this Connector has an actively
+     * connected LedgerClient for; {@code false} otherwise.
+     * @see "https://github.com/interledger/rfcs/issues/77"
+     */
+    public boolean isTransferRemotelyForwardable(final IlpAddress destinationAddress) {
+        Objects.requireNonNull(destinationAddress);
+        return this.getRoutingService().bestHopForDestinationAmount(destinationAddress).isPresent();
     }
 
     /**
@@ -149,29 +155,31 @@ public class DefaultConnector implements Connector {
         /**
          * @param ledgerDirectTransferEvent An instance of {@link LedgerDirectTransferEvent}.
          * @deprecated TODO: It seems like this event is intended to be used when no ILP escrow is required.  However,
-         * it seems like this should // never be used, and instead we should always use escrow, even for optimistic
-         * transactions, so that a recipient // who rejects a payment doesn't have to actually send money back to a
+         * it seems like this should never be used, and instead we should always use escrow, even for optimistic
+         * transactions, so that a recipient who rejects a payment doesn't have to actually send money back to a
          * sender.
          */
         @Override
         @Deprecated
         protected void handleEvent(final LedgerDirectTransferEvent ledgerDirectTransferEvent) {
-            this.getListeningConnector().getPendingTransfers().remove(
-                    ledgerDirectTransferEvent.getIlpPacketHeader().getIlpTransactionId()
-            );
+//            this.getListeningConnector().getPendingTransfers().remove(
+//                    ledgerDirectTransferEvent.getIlpPacketHeader().getIlpTransactionId()
+//            );
         }
 
         /**
          * When a transfer has been prepared on a particular ledger, it means that some payor (a person or a connector,
          * e.g.) has put money on-hold in the ledger that this listener is in charge of monitoring on behalf of the
          * connector that this handler operates.  In other words, it means this Connector has funds that are in-escrow,
-         * waiting to be captured by it.  In order to capture those funds, this connector must "forward" another
-         * corresponding payment in the "next-hop" ledger, in hopes of fulfilling the ILP protocol so that this ledger's
-         * escrow releases the funds on hold waiting for this connector.
+         * waiting to be captured by it.
          * <p>
-         * The connector associated with this handler must also store, for later rollback or execution, a record of the
-         * next-hop transfer for auditing purposes, as well as update its advertised routing tables to reflect the
-         * reduction in liquidity that processing this event entails.
+         * In order to capture those funds, this connector must "deliver" another corresponding payment in the
+         * "next-hop" ledger, in hopes of fulfilling the ILP protocol so that this ledger's escrow releases the funds on
+         * hold waiting for this connector.
+         * <p>
+         * The Connector (associated with this {@link LedgerEventHandler}) must also store, for later rollback or
+         * execution, a record of the next-hop transfer for auditing purposes, as well as to update its advertised
+         * routing tables to reflect the reduction in liquidity that processing this ILP transfer entails.
          *
          * @param ledgerTransferPreparedEvent An instance of {@link LedgerTransferPreparedEvent}.
          * @return
@@ -182,90 +190,88 @@ public class DefaultConnector implements Connector {
             // TODO: implement fraud and velocity checks here, if possible.  If a given sender or ledger is behaving
             // badly, we don't want to suffer for it.
 
-            // First, what's the best route to the destination address?  We rely on the routing table to let us know.
-            final Optional<Route> optRoute = this.listeningConnector.getRoutingService().bestHopForDestinationAmount(
-                    ledgerTransferPreparedEvent.getIlpPacketHeader().getDestinationAddress(),
-                    ledgerTransferPreparedEvent.getAmount()
-            );
+            final IlpAddress destinationAddress = ledgerTransferPreparedEvent.getIlpPacketHeader().getDestinationAddress();
+            if (this.getListeningConnector().isTransferLocallyDeliverable(destinationAddress)) {
 
-            if (optRoute.isPresent()) {
-                final Route route = optRoute.get();
+                ///////////////////////////////
+                // Deliver the Transfer Payment via a new Transfer
+                ///////////////////////////////
+                // The source account of the new transfer should be the connector's account on the next-hop ledger.  Since
+                // this is a "deliverable" payment, the local source account should be this Connector's account on the
+                // destination ledger, which can be gleaned from the ILP destination address.
+                final LedgerId ledgerId = ledgerTransferPreparedEvent.getIlpPacketHeader().getDestinationAddress().getLedgerId();
+                final IlpAddress ledgerLocalSourceAddress = this.getListeningConnector().getLedgerManager()
+                        .getConnectorAccountOnLedger(ledgerId);
+                // Since this is a "deliverable" payment, the next-hopt destination account should be the destination
+                // account in the ILP header.
+                final IlpAddress ledgerLocalDestinationAddress = ledgerTransferPreparedEvent.getIlpPacketHeader().getDestinationAddress();
 
-                // TODO: Consider putting getConnectorLedger(ledgerId) into the connector, and return an optional.
-                final LedgerClient ledgerClient = this.listeningConnector.getLedgerClient(
-                        route.getSourceAddress().getLedgerId()
-                ).orElseThrow(() -> new RuntimeException(
-                        String.format(
-                                "Routing table had a route but Connector has no DefaultLedgerClient for LedgerId %s!",
-                                ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId()
-                        ))
-                );
-
-                // TODO: Is this correct?  The connector is saying to escrow money locally from itself to a local recipient,
-                // but it's unclear who that recipient is.  Thus, for this transfer the connector leaves it to the Ledger
-                // to determine the recipient based upon its own business rules.
-                // Create a new LedgerTransfer for the next hop, and send it to that
-                final LedgerTransfer transfer = new DefaultLedgerTransfer(
+                // Send a payment to the ILP destination address (the actual recipient) on the destination ledger...
+                final DeliveredLedgerTransfer transfer = new DeliveredLedgerTransferImpl(
                         ledgerTransferPreparedEvent.getIlpPacketHeader(),
-
-                        // TODO: Should this come from the routing table, or should the routing table return a ledgerId,
-                        // and then _this_ connector can determine what it's ledgerId is on that ledger?
-                        //route.getSourceAddress(),
-                        ledgerClient.getConnectionInfo().getLedgerAccountId(),
-
-                        // The connector doesn't actually know who the local destination account is.  Thus, it's empty,
-                        // but perhaps it shouldn't even exist?
-                        //Optional.ofNullable(route.getDestinationAddress()),
-                        Optional.empty(),
-                        ledgerTransferPreparedEvent.getAmount(),
+                        ledgerId,
+                        ledgerLocalSourceAddress,
+                        ledgerLocalDestinationAddress,
                         Optional.empty(),
                         Optional.empty()
-                        //.condition(ledgerTransferPreparedEvent.getOptCondition)
-                        //.data(ledgerClient.getLedgerInfo())
-                        // The source address on the next hop ledger that this Connector owns.
-                        // TODO: The ledger will determine the destination account id to use for escrow, right?
-                        // .destinationAddress(
-                        // ledgerTransferPreparedEvent.getIlpPacketHeader().getLocalDestinationAddress())
+                );
+                this.getListeningConnector().getLedgerManager().deliverPayment(
+                        // This is the ledgerId to notify in the event of a rejection, timeout, or fulfillment.  It's not
+                        // the same as the ledger in the transfer.
+                        ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId(),
+                        transfer
+                );
+            } else if (this.getListeningConnector().isTransferRemotelyForwardable(destinationAddress)) {
+                // First, what's the best route to the destination address?  We rely on the routing table to let us know.
+                final Optional<Route> optRoute = this.listeningConnector.getRoutingService().bestHopForDestinationAmount(
+                        ledgerTransferPreparedEvent.getIlpPacketHeader().getDestinationAddress(),
+                        ledgerTransferPreparedEvent.getAmount()
                 );
 
-                ///////////////////////
-                // Instruct the Ledger to send the transfer.
-                ///////////////////////
+                if (optRoute.isPresent()) {
+                    final Route route = optRoute.get();
 
-                // TODO: This will put some funds on hold in that ledger, so we need to update our routing tables potentially.
-                // TODO: Handle events idempotently.  In other words, don't process the same transfer twice in an unsafe fashion.
+                    // Send a payment to the next-hop connector on a new ledger per the routing table...
 
-                // TODO: Depending on how this is used, we might just store the LedgerId of the source ledger for this transfer.
-                // Track the transfer for later...
-                final NoteToSelf noteToSelf = NoteToSelf.builder().originatingLedgerId(
-                        ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId()).build();
+                    // The newSourceAccount should be this Connector's ledger-account on the new ledger from the route.
+                    final LedgerId ledgerId = route.getSourceAddress().getLedgerId();
 
-                // TODO: Consider making pending transfers part of the ConnectorInterface -- not the actual map access,
-                // but methods to add and remove...
-                this.getListeningConnector().getPendingTransfers().put(
-                        ledgerTransferPreparedEvent.getIlpPacketHeader().getIlpTransactionId(),
-                        noteToSelf
-                );
+                    final IlpAddress ledgerLocalSourceAddress = this.getListeningConnector().getLedgerManager()
+                            .getConnectorAccountOnLedger(ledgerId);
 
-                ledgerClient.send(transfer);
+                    final ForwardedLedgerTransfer transfer = new ForwardedLedgerTransferImpl(
+                            ledgerTransferPreparedEvent.getIlpPacketHeader(),
+                            ledgerId,
+                            ledgerLocalSourceAddress
+                            //.condition(ledgerTransferPreparedEvent.getOptCondition)
+                            //.data(ledgerClient.getLedgerInfo())
+                            // The source address on the next hop ledger that this Connector owns.
+                            // TODO: The ledger will determine the destination account id to use for escrow, right?
+                            // .destinationAddress(
+                            // ledgerTransferPreparedEvent.getIlpPacketHeader().getLocalDestinationAddress())
+                    );
+
+                    this.getListeningConnector().getLedgerManager().forwardPayment(
+                            // This is the ledgerId to notify in the event of a rejection, timeout, or fulfillment.  It's not
+                            // the same as the ledger in the transfer.
+                            ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId(),
+                            transfer
+                    );
+                } else {
+                    // Reject the transfer due to no Route (which is comparable to not having a ledger).
+                    //final LedgerClient ledgerClient = this.getListeningConnector().findLedgerClientSafely(
+                    //       ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId());
+                    this.getListeningConnector().getLedgerManager().rejectPayment(
+                            ledgerTransferPreparedEvent.getIlpPacketHeader().getIlpTransactionId(),
+                            LedgerTransferRejectedReason.NO_ROUTE_TO_LEDGER
+                    );
+                }
             } else {
-                // If there's no route, then we need to reject the transfer and then throw an exception...
-                final LedgerId ledgerId = ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId();
-                final LedgerClient ledgerClient = this.getListeningConnector().getLedgerClient(ledgerId)
-                        .orElseThrow(() -> new RuntimeException(
-                                String.format(
-                                        "Received ledgerTransferPreparedEvent for disconnected Ledger %s",
-                                        ledgerTransferPreparedEvent.getLedgerInfo().getLedgerId()
-                                )));
-                ledgerClient.rejectTransfer(
+                // Reject the transfer due to no Ledger Connection...
+                this.getListeningConnector().getLedgerManager().rejectPayment(
                         ledgerTransferPreparedEvent.getIlpPacketHeader().getIlpTransactionId(),
                         LedgerTransferRejectedReason.NO_ROUTE_TO_LEDGER
                 );
-
-                // For now, if the prepared transfer can't be routed by this connector, then the connector does this.
-                // But is this correct?
-                // TODO: Query the list or js code to determine what should happen here...
-                throw new RuntimeException(String.format("No route to Ledger %s", ledgerId));
             }
         }
 
@@ -283,32 +289,37 @@ public class DefaultConnector implements Connector {
          */
         @Override
         protected void handleEvent(final LedgerTransferExecutedEvent ledgerTransferExecutedEvent) {
+
             // TODO: From the LedgerTransferEvent doc: "Ledger plugins MUST ensure that the data in the noteToSelf either isn't shared with any untrusted party or encrypted before it is shared."
             // If this value is signed via the fulfilment, then does it matter if it's encrypted?  In other words, what's secret about this information?
             // Perhaps the ILP Transaction Id?  If that's the case, then perhaps it would be preferable for the Ledger to store this data internally
 
             // The ledger that this executed transfer came from, so we can pass the fulfillment back.
-            final LedgerId originatingLedgerId = Optional.ofNullable(
-                    this.getListeningConnector().getPendingTransfers().get(
-                            ledgerTransferExecutedEvent.getIlpPacketHeader().getIlpTransactionId())
-            )
-                    .map(noteToSelf -> noteToSelf.getOriginatingLedgerId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "No pending transfer existed to determine which ledger to pass executed fulfilment back to!"));
+            final Optional<LedgerId> optOriginatingLedgerId = this.getListeningConnector().getLedgerManager()
+                    .getOriginatingLedgerId(
+                            ledgerTransferExecutedEvent.getIlpPacketHeader().getIlpTransactionId()
+                    );
 
+            if (optOriginatingLedgerId.isPresent()) {
+                final LedgerId originatingLedgerId = optOriginatingLedgerId.get();
 
-            // This Connector needs to send the fufillment condition back to the ledger that originally triggered the ILP
-            // transaction in the first place.
-            final Optional<LedgerClient> optLedgerClient = this.getListeningConnector().findLedgerClient(
-                    originatingLedgerId);
-            if (optLedgerClient.isPresent()) {
-                optLedgerClient.get().fulfillCondition(
-                        ledgerTransferExecutedEvent.getIlpPacketHeader().getIlpTransactionId());
+                // This Connector needs to send the fufillment condition back to the ledger that originally triggered
+                // the ILP transaction in the first place.
+                final Optional<LedgerClient> optLedgerClient = this.getListeningConnector().getLedgerManager()
+                        .findLedgerClient(originatingLedgerId);
+                if (optLedgerClient.isPresent()) {
+                    optLedgerClient.get().fulfillCondition(
+                            ledgerTransferExecutedEvent.getIlpPacketHeader().getIlpTransactionId());
+                } else {
+                    logger.warn("No LedgerClient existed for LedgerId: {}", originatingLedgerId);
+                }
             } else {
-                logger.warn("No LedgerClient existed for LedgerId: {}", originatingLedgerId);
+                logger.error(
+                        "No originating LedgerId to execute for ILP Transaction {}!",
+                        ledgerTransferExecutedEvent.getIlpPacketHeader().getIlpTransactionId()
+                );
             }
         }
-
 
         @Override
         protected void handleEvent(final LedgerTransferRejectedEvent ledgerTransferRejectedEvent) {
@@ -320,25 +331,32 @@ public class DefaultConnector implements Connector {
             // be preferable for the Ledger to store this data internally.
 
             // The ledger that this executed transfer came from, so we can pass the fulfillment back.
-            final LedgerId originatingLedgerId =
-                    Optional.ofNullable(this.getListeningConnector().getPendingTransfers().get(
-                            ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId())
-                    )
-                            .map(noteToSelf -> noteToSelf.getOriginatingLedgerId())
-                            .orElseThrow(() -> new RuntimeException(
-                                    "No pending transfer existed to determine which ledger to pass rejected fulfilment back to!"));
+            final Optional<LedgerId> optOriginatingLedgerId = this.getListeningConnector().getLedgerManager()
+                    .getOriginatingLedgerId(
+                            ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId()
+                    );
 
-            // This Connector needs to send the rejection back to the ledger that originally triggered the ILP
-            // transaction in the first place.
-            final Optional<LedgerClient> optLedgerClient = this.getListeningConnector().findLedgerClient(
-                    originatingLedgerId);
-            if (optLedgerClient.isPresent()) {
-                optLedgerClient.get().rejectTransfer(
-                        ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId(),
-                        LedgerTransferRejectedReason.REJECTED_BY_RECEIVER
-                );
+            if (optOriginatingLedgerId.isPresent()) {
+                final LedgerId originatingLedgerId = optOriginatingLedgerId.get();
+
+                // This Connector needs to send the rejection back to the ledger that originally triggered the ILP
+                // transaction in the first place.
+                final Optional<LedgerClient> optLedgerClient = this.getListeningConnector().getLedgerManager()
+                        .findLedgerClient(originatingLedgerId);
+
+                if (optLedgerClient.isPresent()) {
+                    optLedgerClient.get().rejectTransfer(
+                            ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId(),
+                            LedgerTransferRejectedReason.REJECTED_BY_RECEIVER
+                    );
+                } else {
+                    logger.warn("No LedgerClient existed for LedgerId: {}", originatingLedgerId);
+                }
             } else {
-                logger.warn("No LedgerClient existed for LedgerId: {}", originatingLedgerId);
+                logger.error(
+                        "No originating LedgerId to execute for ILP Transaction {}!",
+                        ledgerTransferRejectedEvent.getIlpPacketHeader().getIlpTransactionId()
+                );
             }
         }
     }

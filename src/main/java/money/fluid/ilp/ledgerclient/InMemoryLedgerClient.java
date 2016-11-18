@@ -17,6 +17,7 @@ import org.interledgerx.ilp.core.events.LedgerEventHandler;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An implementation of {@link LedgerClient} that communicates with an in-memory ledger.  Normally, a {@link
@@ -40,6 +41,11 @@ public class InMemoryLedgerClient implements LedgerClient {
     @NonNull
     private Set<LedgerEventHandler> ledgerEventHandlers;
 
+    private static final boolean CONNECTED = true;
+    private static final boolean NOT_CONNECTED = false;
+
+    private AtomicBoolean connected;
+
     /**
      * Default Constructor.  Initializes an empty {@link Set} of {@link LedgerEventHandler}.
      *
@@ -52,6 +58,7 @@ public class InMemoryLedgerClient implements LedgerClient {
         this.connectionInfo = Objects.requireNonNull(connectionInfo);
         this.inMemoryLedger = Objects.requireNonNull(ledger);
         this.ledgerEventHandlers = new HashSet<>();
+        this.connected = new AtomicBoolean(NOT_CONNECTED);
     }
     ///////////////
 
@@ -63,15 +70,27 @@ public class InMemoryLedgerClient implements LedgerClient {
 
     @Override
     public void connect() {
-        // This merely establishes a connection to the Ledger.  Managers for this client (e.g., a Connector) may register
-        // and unregister handlers at will.
-        this.inMemoryLedger.getLedgerConnectionManager().connect(this.connectionInfo);
+        if (!this.isConnected()) {
+            // This merely establishes a connection to the Ledger.  Managers for this client (e.g., a Connector) may register
+            // and unregister handlers at will.
+            this.inMemoryLedger.getLedgerConnectionManager().connect(this.connectionInfo);
+            this.connected.compareAndSet(NOT_CONNECTED, CONNECTED);
+        }
     }
 
     @Override
     public void disconnect() {
-        this.inMemoryLedger.getLedgerConnectionManager().disconnect(this.connectionInfo.getConnectorId());
+        if (this.isConnected()) {
+            this.inMemoryLedger.getLedgerConnectionManager().disconnect(this.connectionInfo.getConnectorId());
+            this.connected.compareAndSet(CONNECTED, NOT_CONNECTED);
+        }
     }
+
+    @Override
+    public boolean isConnected() {
+        return this.connected.get();
+    }
+
 
     /**
      * Initiate an ILP transfer.

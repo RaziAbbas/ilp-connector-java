@@ -16,20 +16,20 @@ public interface RoutingService {
      * <p>
      * NOTE: A connector may advertise more than a single route for a given destination prefix.
      *
-     * @param destinationLedgerAddressPrefix   The {@link LedgerAddressPrefix} of the ledger/ledger type that this route
-     *                                         will route towards.  This might be an entire {@link IlpAddress}, such
-     *                                         as "fed.us.chase", or it might just be an ILP address prefix, like "fed"
-     *                                         or "fed.us".
-     * @param nextHopIlpAddressForConnector The ILP {@link IlpAddress} of the connector account on a given ledger
-     *                                         that can accept funds to complete an ILP transfer.  In other words, this
-     *                                         is the "source account" on the indicated ledger that the next-hop ledger
-     *                                         will use to initiate the next hop ILP transaction to complete this
-     *                                         overall transfer.
-     * @param routeRate                        An instance of {@link RouteRate} that provides concrete pricing for a
-     *                                         pair of ledgers.  For example, if a route from A->C can be serviced via
-     *                                         ledgers A and B, then A and B would be the source ledgers, respectively.
-     *                                         The ultimate "rate" for a given Route is based upon multiple pieces of
-     *                                         data points such as the overall transfer amount, execution speed, etc.
+     * @param destinationLedgerAddressPrefix The {@link LedgerAddressPrefix} of the ledger/ledger type that this route
+     *                                       will route towards.  This might be an entire {@link IlpAddress}, such as
+     *                                       "fed.us.chase", or it might just be an ILP address prefix, like "fed" or
+     *                                       "fed.us".
+     * @param nextHopIlpAddressForConnector  The ILP {@link IlpAddress} of the connector account on a given ledger that
+     *                                       can accept funds to complete an ILP transfer.  In other words, this is the
+     *                                       "source account" on the indicated ledger that the next-hop ledger will use
+     *                                       to initiate the next hop ILP transaction to complete this overall
+     *                                       transfer.
+     * @param routeRate                      An instance of {@link RouteRate} that provides concrete pricing for a pair
+     *                                       of ledgers.  For example, if a route from A->C can be serviced via ledgers
+     *                                       A and B, then A and B would be the source ledgers, respectively. The
+     *                                       ultimate "rate" for a given Route is based upon multiple pieces of data
+     *                                       points such as the overall transfer amount, execution speed, etc.
      */
     void addRoute(
             final LedgerAddressPrefix destinationLedgerAddressPrefix,
@@ -77,6 +77,12 @@ public interface RoutingService {
     Optional<Route> bestHopForDestinationAmount(
             final IlpAddress destinationAddress, final MonetaryAmount destinationAmount
     );
+
+    // Any amount...returns if there's at least a route available...
+    Optional<Route> bestHopForDestinationAmount(
+            final IlpAddress destinationAddress
+    );
+
 
     // TODO: Create unit tests for this implementation!
     //class Default implements RoutingService {

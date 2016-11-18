@@ -10,20 +10,20 @@ import java.util.Optional;
 public interface LedgerTransfer<DATA, NOTE_TO_SELF> {
 
     /**
-     * Get the local account that funds are being debited from, as an ILP {@link IlpAddress}.
+     * Get the packet header for this transfer, based upon all information contained in the Transfer.
+     *
+     * @return the Interledger Packet Header
+     */
+    InterledgerPacketHeader getInterledgerPacketHeader();
+
+    /**
+     * Get the local account that funds are being debited from, as an ILP {@link IlpAddress}.  This field exists because
+     * the local source account may differ from {@link InterledgerPacketHeader#getSourceAddress()}, for example, an ILP
+     * transfer that involves multiple connectors and ledgers.
      *
      * @return An {@link IlpAddress} for the local source account.
      */
     IlpAddress getLocalSourceAddress();
-
-    /**
-     * Get the local account that funds are being credited to, as an ILP {@link IlpAddress}.  This is an optional field
-     * because is not always known.  For example, often it must be computed by the Ledger after a transfer has been
-     * submitted.
-     *
-     * @return An {@link IlpAddress} for the local destination account.
-     */
-    Optional<IlpAddress> getOptLocalDestinationAddress();
 
     /**
      * Get the transfer amount.
@@ -35,7 +35,9 @@ public interface LedgerTransfer<DATA, NOTE_TO_SELF> {
      *
      * @return An instance of {@link MonetaryAmount}.
      */
-    MonetaryAmount getAmount();
+//    default MonetaryAmount getAmount() {
+//        return this.getInterledgerPacketHeader().getAmount();
+//    }
 
     /**
      * Get the data to be sent.
@@ -57,8 +59,8 @@ public interface LedgerTransfer<DATA, NOTE_TO_SELF> {
      * Get the host's internal memo.  This can be encoded on the wire in any format chosen by an implementation, while
      * being treated as a typed object in the JVM.
      * <p>
-     * An optional bytestring containing details the host needs to persist with the transfer in order to be able to
-     * react to transfer events like condition fulfillment later.
+     * For example, this could be an optional bytestring containing details the host needs to persist with the transfer
+     * in order to be able to react to transfer events like condition fulfillment later.
      * <p>
      * Ledger plugins MAY attach the noteToSelf to the transfer and let the ledger store it. Otherwise it MAY use the
      * store in order to persist this field. Regardless of the implementation, the ledger plugin MUST ensure that all
@@ -71,10 +73,5 @@ public interface LedgerTransfer<DATA, NOTE_TO_SELF> {
      */
     Optional<NOTE_TO_SELF> getOptNoteToSelf();
 
-    /**
-     * Get the packet header for this transfer, based upon all information contained in the Transfer.
-     *
-     * @return the Interledger Packet Header
-     */
-    InterledgerPacketHeader getInterledgerPacketHeader();
+
 }

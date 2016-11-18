@@ -1,7 +1,6 @@
 package money.fluid.ilp.ledger;
 
 
-import money.fluid.ilp.connector.model.ids.ConnectorId;
 import money.fluid.ilp.ledger.inmemory.exceptions.InvalidAccountException;
 import money.fluid.ilp.ledger.inmemory.model.SimpleLedgerAccount;
 import money.fluid.ilp.ledger.model.LedgerAccount;

@@ -1,6 +1,8 @@
 package money.fluid.ilp.ledger.inmemory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Ticker;
+import com.google.common.cache.CacheBuilder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
@@ -10,7 +12,6 @@ import money.fluid.ilp.connector.exceptions.InvalidQuoteRequestException;
 import money.fluid.ilp.connector.model.ids.ConnectorId;
 import money.fluid.ilp.connector.model.ids.IlpTransactionId;
 import money.fluid.ilp.connector.model.ids.LedgerAccountId;
-import money.fluid.ilp.ledger.EscrowManager;
 import money.fluid.ilp.ledger.LedgerAccountManager;
 import money.fluid.ilp.ledger.QuotingService;
 import money.fluid.ilp.ledger.inmemory.exceptions.AccountNotFoundException;
@@ -38,6 +39,8 @@ import org.interledgerx.ilp.core.events.LedgerTransferExecutedEvent;
 import org.interledgerx.ilp.core.events.LedgerTransferPreparedEvent;
 import org.interledgerx.ilp.core.events.LedgerTransferRejectedEvent;
 import org.interledgerx.ilp.core.exceptions.InsufficientAmountException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.money.MonetaryAmount;
 import java.util.Collection;
@@ -49,6 +52,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An implementation of {@link Ledger} that simulates a real ledger supporting ILP functionality.  Ordinarily, a
@@ -56,9 +60,12 @@ import java.util.UUID;
  * external connectivity.  This implementation runs "in-memory", so its event emissions don't need to involve any RPCs.
  */
 @RequiredArgsConstructor
+@Getter
 @ToString
 @EqualsAndHashCode
-public class InMemoryLedger implements Ledger {
+public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     // TODO: In a real ledger, should be configurable.
     private static final LedgerAccountId ESCROW = LedgerAccountId.of("__escrow__");
@@ -67,7 +74,6 @@ public class InMemoryLedger implements Ledger {
     private final String name;
 
     @NonNull
-    @Getter
     private final LedgerInfo ledgerInfo;
 
     @NonNull
@@ -76,19 +82,20 @@ public class InMemoryLedger implements Ledger {
     /////////////
     /////////////
 
-    @Getter
     @NonNull
     private final LedgerAccountManager ledgerAccountManager;
 
     // Each Ledger has a ConnectionManager that processes callbacks.
-    @Getter
     @NonNull
     private final InMemoryLedgerConnectionManager ledgerConnectionManager;
 
     @NonNull
-    private final EscrowManager escrowManager;
+    private final InMemoryEscrowManager escrowManager;
 
-    public InMemoryLedger(final String name, final LedgerInfo ledgerInfo, final QuotingService quotingService) {
+    public InMemoryLedger(
+            final String name, final LedgerInfo ledgerInfo, final QuotingService quotingService,
+            final long defaultExpirationSeconds, final Ticker ticker
+    ) {
         this.name = name;
         this.ledgerInfo = ledgerInfo;
 
@@ -102,8 +109,14 @@ public class InMemoryLedger implements Ledger {
         // Create an Escrow Account in this ledger...
         final IlpAddress escrowAccountAddress = IlpAddress.of(ESCROW, ledgerInfo.getLedgerId());
         this.getLedgerAccountManager().createAccount(escrowAccountAddress);
-        this.escrowManager = new EscrowManager(
-                ledgerInfo, escrowAccountAddress.getLedgerAccountId(), ledgerAccountManager);
+
+        final CacheBuilder<Object, Object> escrowCacheBuilder = CacheBuilder.newBuilder()
+                .expireAfterWrite(defaultExpirationSeconds, TimeUnit.SECONDS)
+                .ticker(ticker);
+        this.escrowManager = new InMemoryEscrowManager(
+                ledgerInfo, escrowAccountAddress.getLedgerAccountId(), ledgerAccountManager, escrowCacheBuilder
+        );
+        this.escrowManager.setEscrowExpirationHandler(this);
     }
 
     /**
@@ -157,8 +170,17 @@ public class InMemoryLedger implements Ledger {
             );
 
             // Given a source address (for the Connector) ask the ledger for the connectorId.
-            final ConnectorId connectorId = this.getSourceConnector(reversedEscrow);
-            this.getLedgerConnectionManager().notifyEventListeners(connectorId, event);
+            final Optional<ConnectorId> optConnectorId = this.getSourceConnector(reversedEscrow);
+
+            if (optConnectorId.isPresent()) {
+                this.getLedgerConnectionManager().notifyEventListeners(optConnectorId.get(), event);
+            } else {
+                logger.error(
+                        "Unable to Reject Transfer '{}' because Connector '{}' was not connected!",
+                        ilpTransactionId,
+                        reversedEscrow.getLocalSourceAddress()
+                );
+            }
         }
     }
 
@@ -189,8 +211,16 @@ public class InMemoryLedger implements Ledger {
             );
 
             // Given a source address (for the Connector) ask the ledger for the connectorId.
-            final ConnectorId connectorId = this.getSourceConnector(executedEscrow);
-            this.getLedgerConnectionManager().notifyEventListeners(connectorId, event);
+            final Optional<ConnectorId> optConnectorId = this.getSourceConnector(executedEscrow);
+            if (optConnectorId.isPresent()) {
+                this.getLedgerConnectionManager().notifyEventListeners(optConnectorId.get(), event);
+            } else {
+                logger.error(
+                        "Unable to Reject Transfer '{}' because Connector '{}' was not connected!",
+                        ilpTransactionId,
+                        executedEscrow.getLocalSourceAddress()
+                );
+            }
         }
     }
 
@@ -212,18 +242,16 @@ public class InMemoryLedger implements Ledger {
      * won't actually be able to fulfil the payment/rejection, because it wasn't the original connector.  Thus,
      * the ledger has to intelligently track "pending transfers" just like the Connector does.
      */
-    private ConnectorId getSourceConnector(final Escrow escrow) {  //final IlpTransactionId ilpTransactionId) {
+    private Optional<ConnectorId> getSourceConnector(
+            final Escrow escrow
+    ) {  //final IlpTransactionId ilpTransactionId) {
         return this.getLedgerConnectionManager().ledgerEventListeners
                 .values().stream()
                 .filter(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getOptLedgerAccountId().isPresent())
                 .filter(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getOptLedgerAccountId().get().equals(
                         escrow.getLocalSourceAddress().getLedgerAccountId()))
                 .map(ledgerEventListener -> ledgerEventListener.getConnectorInfo().getConnectorId())
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException(String.format(
-                        "Unable to find ConnectorId for escrow source account: %s.",
-                        escrow.getLocalSourceAddress()
-                )));
+                .findFirst();
     }
 
     /**
@@ -254,10 +282,10 @@ public class InMemoryLedger implements Ledger {
      */
     private void sendLocally(final LedgerTransfer transfer) {
         // Process the transfer locally...
-        final MonetaryAmount amount = transfer.getAmount();
+        final MonetaryAmount amount = transfer.getInterledgerPacketHeader().getAmount();
 
-        final LedgerAccount localSourceAccount = this.getLedgerAccountManager().getAccount(
-                transfer.getLocalSourceAddress()).get();
+        final LedgerAccount localSourceAccount = this.getLedgerAccountManager()
+                .getAccount(transfer.getLocalSourceAddress()).get();
         final LedgerAccount localDestinationAccount = this.getLedgerAccountManager().getAccount(
                 transfer.getInterledgerPacketHeader().getDestinationAddress()).get();
 
@@ -270,7 +298,7 @@ public class InMemoryLedger implements Ledger {
                     .interledgerPacketHeader(transfer.getInterledgerPacketHeader())
                     .sourceAddress(localSourceAccount.getIlpIdentifier())
                     .destinationAddress(localDestinationAccount.getIlpIdentifier())
-                    .amount(transfer.getAmount())
+                    .amount(transfer.getInterledgerPacketHeader().getAmount())
                     .build();
             this.escrowManager.initiateEscrow(escrowInputs);
 
@@ -303,7 +331,6 @@ public class InMemoryLedger implements Ledger {
             this.getLocalLedgerIlpAddressForConnector(connectorInfo.getConnectorId())
                     .map(connectorIlpAddress -> {
                              // Compute the local source account for the transfer.  This is going to come from the event.
-                             //final IlpAddress localSourceAccountId = transfer.getInterledgerPacketHeader().getSourceAddress();
                              final IlpAddress localSourceAccountId = transfer.getLocalSourceAddress();
 
                              // The local destination account for the transfer is the designated Connector's account.  This is
@@ -314,7 +341,7 @@ public class InMemoryLedger implements Ledger {
                                      .interledgerPacketHeader(transfer.getInterledgerPacketHeader())
                                      .sourceAddress(localSourceAccountId)
                                      .destinationAddress(localDestinationAccountId)
-                                     .amount(transfer.getAmount())
+                                     .amount(transfer.getInterledgerPacketHeader().getAmount())
                                      .build();
 
                              // Execute Escrow!
@@ -342,13 +369,21 @@ public class InMemoryLedger implements Ledger {
             throw new InvalidQuoteRequestException("No Connector available");
         }
 
-        // TODO: Handle multiple debits?
+        // TODO: Handle multiple debits?  See discussion in https://github.com/interledgerjs/ilp-connector/pull/159.  Seems like the idea is to _not_ handle this, but it's a big breaking change so just hasn't happened yet.
         // TODO: store the transfer status somewhere?
 
 //            for (Debit debit : newTransfer.getDebits()) {
 //                executeLocalTransfer(debit.account, HOLDS_URI, debit.amount);
 //            }
 //            newTransfer.setTransferStatus(TransferStatus.PROPOSED);
+    }
+
+    @Override
+    public void onEscrowTimedOut(final Escrow expiredEscrow) {
+        this.rejectTransfer(
+                expiredEscrow.getIlpPacketHeader().getIlpTransactionId(),
+                LedgerTransferRejectedReason.TIMEOUT
+        );
     }
 
 
