@@ -19,7 +19,9 @@ public class DirtCurrencyProvider implements CurrencyProviderSpi {
     private Set<CurrencyUnit> dirtSet = new HashSet<>();
 
     public DirtCurrencyProvider() {
-        dirtSet.add(CurrencyUnitBuilder.of(DRT, "DirtCurrencyBuilder").build());
+        dirtSet.add(CurrencyUnitBuilder.of(DRT, "DirtCurrencyBuilder")
+                            .setDefaultFractionDigits(2)
+                            .build());
         dirtSet = Collections.unmodifiableSet(dirtSet);
     }
 

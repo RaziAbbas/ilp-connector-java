@@ -81,7 +81,8 @@ public class InMemoryLedgerClient implements LedgerClient {
     @Override
     public void disconnect() {
         if (this.isConnected()) {
-            this.inMemoryLedger.getLedgerConnectionManager().disconnect(this.connectionInfo.getConnectorId());
+            this.inMemoryLedger.getLedgerConnectionManager().disconnect(
+                    this.connectionInfo.getLedgerAccountIlpAddress());
             this.connected.compareAndSet(CONNECTED, NOT_CONNECTED);
         }
     }
@@ -98,6 +99,11 @@ public class InMemoryLedgerClient implements LedgerClient {
     @Override
     public void send(final LedgerTransfer transfer) {
         Preconditions.checkNotNull(transfer);
+        Preconditions.checkArgument(
+                transfer.getInterledgerPacketHeader().getDestinationAddress().equals(
+                        transfer.getInterledgerPacketHeader().getSourceAddress()) == false,
+                "ILP should not be used for a sender/receiver on the same ledger!"
+        );
 
         // Simulate an RPC call to the ledger by merely calling the method directly on the inMemoryLedger.
         this.inMemoryLedger.send(transfer);
@@ -109,23 +115,18 @@ public class InMemoryLedgerClient implements LedgerClient {
     }
 
     @Override
-    public void fulfillCondition(Fulfillment fulfillment) {
-        this.inMemoryLedger.fulfillCondition(fulfillment);
-    }
-
-    @Override
-    public void fulfillCondition(final IlpTransactionId ilpTransactionId) {
-        this.inMemoryLedger.fulfillCondition(ilpTransactionId);
+    public void fulfillCondition(final IlpTransactionId ilpTransactionId, Fulfillment fulfillment) {
+        this.inMemoryLedger.fulfillCondition(ilpTransactionId, fulfillment);
     }
 
     @Override
     public void registerEventHandler(LedgerEventHandler<?> handler) {
         Preconditions.checkNotNull(handler);
 
-        // For each connection to the Ledger, the Ledger requires a new Listener in order to associate a group of
+        // For each connection to the Ledger, the LedgerClient requires a new Listener in order to associate a group of
         // LedgerEventHandlers to a single Connector/Ledger combination.
         this.inMemoryLedger.getLedgerConnectionManager().registerEventHandler(
-                handler.getListeningConnector().getConnectorInfo().getConnectorId(), handler
+                this.getConnectionInfo().getLedgerAccountIlpAddress(), handler
         );
     }
 }

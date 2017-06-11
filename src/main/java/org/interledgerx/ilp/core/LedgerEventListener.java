@@ -1,6 +1,5 @@
 package org.interledgerx.ilp.core;
 
-import money.fluid.ilp.ledger.model.ConnectorInfo;
 import org.interledgerx.ilp.core.events.LedgerEvent;
 import org.interledgerx.ilp.core.events.LedgerEventHandler;
 
@@ -69,6 +68,14 @@ public interface LedgerEventListener {
      *
      * @return
      */
-    ConnectorInfo getConnectorInfo();
+    //ConnectorInfo getConnectorInfo();
+
+    /**
+     * The {@link IlpAddress} of the client (Connector, Wallet, etc) that this listener is listening on behalf of.  This
+     * is necessary for the consumers of this listener to properly route events.
+     *
+     * @return
+     */
+    IlpAddress getListeningIlpAddress();
 
 }

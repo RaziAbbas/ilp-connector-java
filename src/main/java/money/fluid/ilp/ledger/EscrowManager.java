@@ -5,6 +5,8 @@ import money.fluid.ilp.ledger.inmemory.exceptions.EscrowException;
 import money.fluid.ilp.ledger.inmemory.model.Escrow;
 import money.fluid.ilp.ledger.inmemory.model.EscrowInputs;
 
+import java.util.Optional;
+
 /**
  * A service that manages escrow for a Ledger.  A ledger will hold some assets in escrow that, when executed, will be
  * credited to the target account for an escrow.  Conversely, if an escrow is reversed, then the assets will be credited
@@ -13,14 +15,22 @@ import money.fluid.ilp.ledger.inmemory.model.EscrowInputs;
 public interface EscrowManager {
     /**
      * Create an initiateEscrow transaction by debiting an {@code amount} of the associated ledger's asset from  {@code
-     * {@link EscrowInputs#getSourceAddress()} and crediting the same amount into the initiateEscrow account for the
-     * associated ledger.
+     * {@link EscrowInputs#getLocalSourceAddress()} and crediting the same amount into the initiateEscrow account for
+     * the associated ledger.
      *
      * @param escrowInputs An instance of {@link EscrowInputs} with all information required to initiate an
      *                     initiateEscrow transaction.
      * @return
      */
-    Escrow initiateEscrow(final EscrowInputs escrowInputs);
+    Escrow initiateEscrow(final EscrowInputs escrowInputs) throws EscrowException;
+
+    /**
+     * Get an escrow for the specified {@link IlpTransactionId}.
+     *
+     * @param ilpTransactionId
+     * @return
+     */
+    Optional<Escrow> getEscrow(final IlpTransactionId ilpTransactionId);
 
     /**
      * For a given pending escrow transaction identified by {@code ilpTransactionId}, execute the escrow by crediting
@@ -31,7 +41,7 @@ public interface EscrowManager {
      * @return
      * @throws EscrowException if the escrow execution failed for any reason.
      */
-    Escrow executeEscrow(final IlpTransactionId ilpTransactionId);
+    Escrow executeEscrow(final IlpTransactionId ilpTransactionId) throws EscrowException;
 
     /**
      * For a given pending escrow transaction identified by {@code ilpTransactionId}, reverse the escrow by crediting
@@ -42,5 +52,5 @@ public interface EscrowManager {
      * @return
      * @throws EscrowException if the escrow execution failed for any reason.
      */
-    Escrow reverseEscrow(final IlpTransactionId ilpTransactionId);
+    Escrow reverseEscrow(final IlpTransactionId ilpTransactionId) throws EscrowException;
 }

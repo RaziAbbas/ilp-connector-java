@@ -8,9 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.InterledgerPacketHeader;
+import org.joda.time.DateTime;
 
 import javax.money.MonetaryAmount;
+import java.util.Date;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A class that outlines an initiateEscrow arrangement between two parties for which a given ledger is the
@@ -27,7 +30,7 @@ public class Escrow {
     // Holds the ilp transaction id, the ultimate source and destination of funds from an ILP perspective (might be
     // different from the local accounts in this escrow)
     @NonNull
-    private final InterledgerPacketHeader ilpPacketHeader;
+    private final InterledgerPacketHeader interledgerPacketHeader;
 
     // The ILP address of the local account that funded this escrow. This is often different
     // from ILP Source Address.
@@ -47,13 +50,48 @@ public class Escrow {
     @NonNull
     private final MonetaryAmount amount;
 
+    // This is the expiry of the escrow...
+    private final Optional<DateTime> optExpiry;
+
+    @NonNull
+    private final Status status;
+
     public Escrow(final EscrowInputs escrowInputs, final IlpAddress escrowAddress) {
         Objects.requireNonNull(escrowInputs);
 
-        this.ilpPacketHeader = escrowInputs.getInterledgerPacketHeader();
-        this.localSourceAddress = escrowInputs.getSourceAddress();
+        this.interledgerPacketHeader = escrowInputs.getInterledgerPacketHeader();
+        this.localSourceAddress = escrowInputs.getLocalSourceAddress();
         this.escrowAddress = Objects.requireNonNull(escrowAddress);
-        this.localDestinationAddress = escrowInputs.getDestinationAddress();
+        this.localDestinationAddress = escrowInputs.getLocalDestinationAddress();
+        this.optExpiry = escrowInputs.getOptExpiry();
         this.amount = escrowInputs.getAmount();
+        this.status = Status.PENDING;
+    }
+
+    /**
+     * Copy Constructor to update escrow status.
+     *
+     * @param escrow
+     * @param newStatus
+     */
+    public Escrow(final Escrow escrow, final Status newStatus) {
+        Objects.requireNonNull(escrow);
+
+        this.interledgerPacketHeader = escrow.getInterledgerPacketHeader();
+        this.localSourceAddress = escrow.getLocalSourceAddress();
+        this.escrowAddress = escrow.getEscrowAddress();
+        this.localDestinationAddress = escrow.getLocalDestinationAddress();
+        this.optExpiry = escrow.getOptExpiry();
+        this.amount = escrow.getAmount();
+        this.status = newStatus;
+    }
+
+    public enum Status {
+        // The Escrow has is waiting to be fulfilled or rejected.
+        PENDING,
+        // The escrow has been executed.  See Javadoc on EscrowService#execute.
+        EXECUTED,
+        // The escrow has been reversed.  See Javadoc on EscrowService#reverse
+        REVERSED
     }
 }

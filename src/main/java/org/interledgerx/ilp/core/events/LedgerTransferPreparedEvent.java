@@ -1,6 +1,6 @@
 package org.interledgerx.ilp.core.events;
 
-import money.fluid.ilp.connector.model.ids.LedgerAccountId;
+import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.InterledgerPacketHeader;
 import org.interledgerx.ilp.core.LedgerInfo;
 
@@ -17,8 +17,8 @@ public class LedgerTransferPreparedEvent extends LedgerTransferEvent {
     public LedgerTransferPreparedEvent(
             //final ConnectorInfo connectorInfo,
             LedgerInfo source,
-            InterledgerPacketHeader ilpPacketHeader, LedgerAccountId localSourceAccount,
-            LedgerAccountId localDestinationAccount, MonetaryAmount localTransferAmount
+            InterledgerPacketHeader ilpPacketHeader, IlpAddress localSourceAccount,
+            IlpAddress localDestinationAccount, MonetaryAmount localTransferAmount
     ) {
 
         super(source, ilpPacketHeader, localSourceAccount, localDestinationAccount,

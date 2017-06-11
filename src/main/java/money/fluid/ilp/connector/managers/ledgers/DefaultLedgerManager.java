@@ -48,6 +48,13 @@ public class DefaultLedgerManager implements LedgerManager {
         this.pendingTransferManager = Objects.requireNonNull(pendingTransferManager);
     }
 
+    /**
+     * When delivering a payment, the LedgerManager
+     *
+     * @param sourceLedgerId The {@link LedgerId} of the ledger that should be notified when the {@code ledgerTransfer}
+     *                       is either fulfilled, rejected, or timed-out.
+     * @param ledgerTransfer
+     */
     @Override
     public void deliverPayment(final LedgerId sourceLedgerId, final DeliveredLedgerTransfer ledgerTransfer) {
         Objects.requireNonNull(sourceLedgerId);
@@ -57,9 +64,10 @@ public class DefaultLedgerManager implements LedgerManager {
 //        final NoteToSelf noteToSelf = NoteToSelf.builder().originatingLedgerId(
 //                ledgerId.getLedgerInfo().getLedgerId()).build();
 
-        // Because this is a delivery, the ledgerTransfer should have the local destination adress.
+        // Because this is a delivery, the ledgerTransfer should have the local destination address.
         this.findLedgerClientSafely(ledgerTransfer.getLedgerId()).send(ledgerTransfer);
 
+        // TODO: I think this should be removed.
         // Track the pending payment before sending to the ledger...
         this.pendingTransferManager.addPendingTransfer(
                 PendingTransfer.of(
@@ -96,6 +104,7 @@ public class DefaultLedgerManager implements LedgerManager {
         this.getOriginatingLedgerId(ilpTransactionId).ifPresent((ledgerId -> {
             this.findLedgerClientSafely(ledgerId).rejectTransfer(ilpTransactionId, ledgerTransferRejectedReason);
         }));
+
         // Remove the pending payment _after_ sending to the ledger...
         this.pendingTransferManager.removePendingTransfer(ilpTransactionId);
     }
@@ -117,6 +126,6 @@ public class DefaultLedgerManager implements LedgerManager {
 
     @Override
     public IlpAddress getConnectorAccountOnLedger(final LedgerId ledgerId) {
-        return this.findLedgerClientSafely(ledgerId).getConnectionInfo().getLedgerAccountId();
+        return this.findLedgerClientSafely(ledgerId).getConnectionInfo().getLedgerAccountIlpAddress();
     }
 }

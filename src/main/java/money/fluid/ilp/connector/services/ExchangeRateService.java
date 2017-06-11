@@ -1,6 +1,5 @@
 package money.fluid.ilp.connector.services;
 
-import money.fluid.ilp.connector.model.ids.AssetId;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -9,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import org.springframework.stereotype.Service;
 
+import javax.money.CurrencyUnit;
+import javax.money.MonetaryAmount;
 import javax.money.convert.ExchangeRateProvider;
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -19,14 +20,24 @@ import java.util.Objects;
 public interface ExchangeRateService {
 
     /**
-     * Computes the current exchange rate that this connector will charge to accept one type of asset and return another
-     * type.
+     * Computes the current exchange rate between the specified instances of {@link CurrencyUnit}.
      *
-     * @param sourceAssetId
-     * @param destinationAssetId
+     * @param sourceCurrencyUnit
+     * @param destinationCurrencyUnit
      * @return
      */
-    ExchangeRateInfo getExchangeRate(AssetId sourceAssetId, AssetId destinationAssetId);
+    // TODO: Consider removing this, or else implement it
+    //ExchangeRateInfo getExchangeRate(CurrencyUnit sourceCurrencyUnit, CurrencyUnit destinationCurrencyUnit);
+
+    /**
+     * Computes the current exchange rate between the specified instances of {@link CurrencyUnit}.
+     *
+     * @param sourceAmount            The {@link MonetaryAmount} to convert.
+     * @param destinationCurrencyUnit The {@link CurrencyUnit} to convert the {@code sourceAmount} to.
+     * @return
+     */
+    ExchangeRateInfo getExchangeRate(MonetaryAmount sourceAmount, CurrencyUnit destinationCurrencyUnit);
+
 
     /**
      * A default implementation of {@link ExchangeRateService} that returns statically defined exchange rate information
@@ -56,6 +67,7 @@ public interface ExchangeRateService {
 
         /**
          * No-args Constructor.
+         *
          * @param exchangeRateProvider
          */
         public SandStaticExchangeRateService(final ExchangeRateProvider exchangeRateProvider) {
@@ -86,15 +98,11 @@ public interface ExchangeRateService {
          * To convert from RED to BLUE using our reference currency (SAND), first convert the RED currency to SAND,
          * which will yield 0.913 SAND for each RED.  Next, we convert our 0.913 SAND to blue, at a rate of 1:2, or
          * 1.8260 BLUE.
-         *
-         * @param sourceAssetId
-         * @param destinationAssetId
-         * @return
-         */
-        @Override
-        public ExchangeRateInfo getExchangeRate(final AssetId sourceAssetId, final AssetId destinationAssetId) {
+         **/
+        // @Override
+        // public ExchangeRateInfo getExchangeRate(final AssetId sourceAssetId, final AssetId destinationAssetId) {
 
-            // TODO: FIXME or replace with javax.money variant!
+        // TODO: FIXME or replace with javax.money variant!
 
 //            //final AssetId ass
 //            // 1.) Convert the source asset into SDC, unless it's already SDC, in which case we can return an exchange rate directly.
@@ -115,6 +123,13 @@ public interface ExchangeRateService {
 //                        .destinationAssetId(destinationAssetId)
 //                        .build();
 //            }
+
+        //  return null;
+        // }
+        @Override
+        public ExchangeRateInfo getExchangeRate(MonetaryAmount sourceAmount, CurrencyUnit destinationCurrencyUnit) {
+            Objects.requireNonNull(sourceAmount);
+            Objects.requireNonNull(destinationCurrencyUnit);
 
             return null;
         }
@@ -150,13 +165,9 @@ public interface ExchangeRateService {
     @EqualsAndHashCode
     class ExchangeRateInfo {
         @NonNull
-        private final AssetId sourceAssetId;
+        private final MonetaryAmount sourceAmount;
         @NonNull
-        private final AssetId destinationAssetId;
-        @NonNull
-        private final BigDecimal sourceAmount = BigDecimal.ONE;
-        @NonNull
-        private final BigDecimal destinationAmount;
+        private final MonetaryAmount destinationAmount;
 
         /**
          * Return the exchange rate, as a big decimal.  For example, if one of the source asset can be purchased for 10
@@ -165,19 +176,10 @@ public interface ExchangeRateService {
          *
          * @return
          */
-        public BigDecimal getExchangeRate() {
-            return sourceAmount.divide(destinationAmount, 10, BigDecimal.ROUND_HALF_UP);
-        }
+        // TODO: If you end up needing this, then consider implementing in the service instead.
+//        public BigDecimal getExchangeRate() {
+//            return sourceAmount.divide(destinationAmount, 10, BigDecimal.ROUND_HALF_UP);
+//        }
 
-        /**
-         * Convert an amount of the source asset to an amount of the destination asset.
-         *
-         * @param sourceAmount
-         * @return
-         */
-        public BigDecimal convert(final BigDecimal sourceAmount) {
-            Objects.requireNonNull(sourceAmount);
-            return sourceAmount.multiply(this.getExchangeRate()).setScale(10, BigDecimal.ROUND_HALF_UP);
-        }
     }
 }

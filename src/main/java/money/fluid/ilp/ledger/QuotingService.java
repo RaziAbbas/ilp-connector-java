@@ -1,10 +1,16 @@
 package money.fluid.ilp.ledger;
 
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import money.fluid.ilp.ledger.model.ConnectorInfo;
+import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.Ledger;
 import org.interledgerx.ilp.core.LedgerTransfer;
 
+import javax.money.MonetaryAmount;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -17,11 +23,17 @@ public interface QuotingService {
     /**
      * For a given {@link LedgerTransfer}, find the connector that is best able to service the request.
      *
-     * @param ledgerTransfer An instance of {@link LedgerTransfer} that has all appropriate information necessary to
-     *                       find the best connector for an ILP transfer.
+     * @param destinationAddress An instance of {@link IlpAddress} that describes the final destination of the ILP
+     *                           transaction.
+     * @param destinationAmount  A {@link MonetaryAmount} describing the amount of money (in any currency) that is to be
+     *                           sent to the final destination.  This amount may be denominated in the ledger's local
+     *                           currency (i.e., a source-amount transfer), or it may be denominated in the destination
+     *                           ledger's currency (a destination-amount transfer).
      * @return A {@link String} identifying a connector that is connected to this {@link Ledger}.
      */
-    Optional<ConnectorInfo> findBestConnector(final LedgerTransfer ledgerTransfer);
+    Optional<LedgerQuote> findBestConnector(
+            final IlpAddress destinationAddress, final MonetaryAmount destinationAmount
+    );
 
     /**
      * An implementation of {@link QuotingService} that merely finds the first connector with the lowest transaction
@@ -38,8 +50,16 @@ public interface QuotingService {
         // private
 
         @Override
-        public Optional<ConnectorInfo> findBestConnector(final LedgerTransfer ledgerTransfer) {
-            Objects.requireNonNull(ledgerTransfer);
+        public Optional<LedgerQuote> findBestConnector(
+                final IlpAddress destinationAddress, final MonetaryAmount destinationAmount
+        ) {
+            Objects.requireNonNull(destinationAddress);
+            Objects.requireNonNull(destinationAmount);
+
+            // First, find any connectors that can service the destination ledger.
+            // Out of that group, get a Quote for the ledgerTransfer amount.
+            // Using this, return the Connector that provides the best quote.
+            // Also, return the exchange rate that the ledger should use.
 
             return Optional.empty();
             //return ledger.getConnectors().values().stream().findFirst();
@@ -63,10 +83,21 @@ public interface QuotingService {
 //
 //                    .build();
 //            //.feeAssetId(this.ledger.getLedgerInfo().getCurrencyCode())
-//            //.originalAmount(ledgerTransfer.getAmount())
+//            //.originalAmount(ledgerTransfer.getDestinationAmount())
 //            //.
 //        }
 
 
     }
+
+    @Getter
+    @RequiredArgsConstructor
+    @Builder
+    @ToString
+    @EqualsAndHashCode
+    class LedgerQuote {
+        private final MonetaryAmount transferAmount;
+        private final ConnectorInfo destinationConnectorInfo;
+    }
+
 }

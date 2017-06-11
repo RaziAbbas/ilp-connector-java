@@ -7,8 +7,6 @@ import com.google.common.eventbus.Subscribe;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import money.fluid.ilp.connector.model.ids.LedgerAccountId;
-import money.fluid.ilp.ledger.model.LedgerId;
 import org.interledgerx.ilp.core.events.LedgerConnectedEvent;
 import org.interledgerx.ilp.core.events.LedgerDirectTransferEvent;
 import org.interledgerx.ilp.core.events.LedgerDisonnectedEvent;
@@ -116,14 +114,14 @@ public abstract class AbstractEventBusLedgerEventHandler extends AbstractLedgerE
     ) {
         logger.info(
                 "LedgerEventHandler[{}]: About to handle LedgerEvent '{}' for Connector[{}]",
-                this.getSourceLedgerInfo().getLedgerId(),
+                this.getSourceLedgerClient().getLedgerInfo().getLedgerId(),
                 ledgerEvent,
                 this.getListeningConnector().getConnectorInfo().getConnectorId()
         );
         consumer.accept(ledgerEvent);
         logger.info(
                 "LedgerEventHandler[{}]: Handled LedgerEvent '{}' for Connector[{}]",
-                this.getSourceLedgerInfo().getLedgerId(),
+                this.getSourceLedgerClient().getLedgerInfo().getLedgerId(),
                 ledgerEvent,
                 this.getListeningConnector().getConnectorInfo().getConnectorId()
         );

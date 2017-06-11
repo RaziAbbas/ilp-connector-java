@@ -12,6 +12,7 @@ import org.interledgerx.ilp.core.DeliveredLedgerTransfer;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.InterledgerPacketHeader;
 
+import javax.money.MonetaryAmount;
 import java.util.Optional;
 
 @RequiredArgsConstructor
@@ -25,20 +26,24 @@ public class DeliveredLedgerTransferImpl implements DeliveredLedgerTransfer<Stri
     private final InterledgerPacketHeader interledgerPacketHeader;
 
     @NonNull
-    private final LedgerId ledgerId;
-
-    @NonNull
     private final IlpAddress localSourceAddress;
 
     @NonNull
     private final IlpAddress localDestinationAddress;
 
-//    @NonNull
-//    private final MonetaryAmount amount;
+    @NonNull
+    private final MonetaryAmount amount;
 
     @NonNull
     private final Optional<String> optData;
 
     @NonNull
     private final Optional<NoteToSelf> optNoteToSelf;
+
+    /**
+     * For a delivered transfer, the ledgerId is the ledgerId of the destination account address.
+     */
+    public LedgerId getLedgerId() {
+        return this.getLocalDestinationAddress().getLedgerId();
+    }
 }

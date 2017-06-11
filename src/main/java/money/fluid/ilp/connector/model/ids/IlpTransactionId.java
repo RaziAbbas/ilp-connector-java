@@ -12,6 +12,7 @@ import lombok.ToString;
  */
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
+// TODO: Consider renaming this to IlpPaymentId, since an ILP payment consists of a collection of ILP transfers.
 public class IlpTransactionId extends StringId<IlpTransactionId> {
 
     /**

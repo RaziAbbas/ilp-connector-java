@@ -8,19 +8,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import money.fluid.ilp.connector.Connector;
 import money.fluid.ilp.connector.model.ids.ConnectorId;
-import money.fluid.ilp.connector.model.ids.LedgerAccountId;
-
-import java.util.Optional;
+import org.interledgerx.ilp.core.IlpAddress;
+import org.interledgerx.ilp.core.Ledger;
 
 /**
- * Provides information about a Connector.
+ * Provides information about a Connector from a {@link Ledger} perspective.
  */
 @RequiredArgsConstructor
 @Builder
 @Getter
 @ToString
 @EqualsAndHashCode
-// TODO Make this an interface and move the impl to the inmemory package.
+// TODO Make this an interface
 public class ConnectorInfo {
     /**
      * The unique identifier of a {@link Connector}.
@@ -34,5 +33,5 @@ public class ConnectorInfo {
     // coming from the Connector.  However, once in the Ledger, the ledger will populate this account, and this is useful
     // to be able to lookup a LedgerEventListener by connectorId.
     @NonNull
-    private final Optional<LedgerAccountId> optLedgerAccountId;
+    private final IlpAddress ilpAddress;
 }

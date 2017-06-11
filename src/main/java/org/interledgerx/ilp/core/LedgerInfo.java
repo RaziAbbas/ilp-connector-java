@@ -1,6 +1,5 @@
 package org.interledgerx.ilp.core;
 
-import money.fluid.ilp.connector.model.ids.LedgerAccountId;
 import money.fluid.ilp.ledger.model.LedgerId;
 
 /**

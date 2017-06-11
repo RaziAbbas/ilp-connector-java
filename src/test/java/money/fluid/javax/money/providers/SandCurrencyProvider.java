@@ -19,7 +19,12 @@ public class SandCurrencyProvider implements CurrencyProviderSpi {
     private Set<CurrencyUnit> sandSet = new HashSet<>();
 
     public SandCurrencyProvider() {
-        sandSet.add(CurrencyUnitBuilder.of(SND, "SandCurrencyBuilder").build());
+        sandSet.add(
+                CurrencyUnitBuilder.of(SND, "SandCurrencyBuilder")
+                        .setDefaultFractionDigits(2)
+                        .setCurrencyCode(SND)
+                        .build(true)
+        );
         sandSet = Collections.unmodifiableSet(sandSet);
     }
 

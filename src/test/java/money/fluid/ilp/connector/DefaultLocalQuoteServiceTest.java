@@ -1,12 +1,12 @@
 package money.fluid.ilp.connector;
 
 import money.fluid.ilp.connector.model.ids.LedgerAccountId;
-import money.fluid.ilp.ledger.model.LedgerId;
 import money.fluid.ilp.connector.services.ConnectedLedgerService;
 import money.fluid.ilp.connector.services.ConnectorFeeService;
 import money.fluid.ilp.connector.services.WhoAmIService;
 import money.fluid.ilp.connector.services.quoting.QuoteService;
 import money.fluid.ilp.connector.services.quoting.impl.DefaultLocalQuoteService;
+import money.fluid.ilp.ledger.model.LedgerId;
 import org.mockito.Mock;
 
 import java.math.BigDecimal;
@@ -21,7 +21,8 @@ public class DefaultLocalQuoteServiceTest {
     private static final LedgerId DESTINATION_LEDGER_ID = new LedgerId("destinationLedger");
 
     private static final LedgerAccountId SOURCE_ESCROW_ACCOUNT_ID = new LedgerAccountId("sourceEscrowAccount");
-    private static final LedgerAccountId DESTINATION_ESCROW_ACCOUNT_ID = new LedgerAccountId("destinationEscrowAccount");
+    private static final LedgerAccountId DESTINATION_ESCROW_ACCOUNT_ID = new LedgerAccountId(
+            "destinationEscrowAccount");
 
     private static final Optional<LedgerAccountId> OPT_SOURCE_ESCROW_ACCOUNT_ID = Optional.of(SOURCE_ESCROW_ACCOUNT_ID);
     private static final Optional<LedgerAccountId> OPT_DESTINATION_ESCROW_ACCOUNT_ID = Optional.of(
@@ -31,8 +32,8 @@ public class DefaultLocalQuoteServiceTest {
     private static final LedgerAccountId DESTINATION_FEE_ACCOUNT_ID = new LedgerAccountId("destinationFeeAccount");
 
     private static final Optional<LedgerAccountId> OPT_SOURCE_FEE_ACCOUNT_ID = Optional.of(SOURCE_FEE_ACCOUNT_ID);
-    private static final Optional<LedgerAccountId> OPT_DESTINATION_FEE_ACCOUNT_ID = Optional.of(DESTINATION_FEE_ACCOUNT_ID);
-
+    private static final Optional<LedgerAccountId> OPT_DESTINATION_FEE_ACCOUNT_ID = Optional.of(
+            DESTINATION_FEE_ACCOUNT_ID);
 
     private static final Optional<BigDecimal> SOURCE_AMOUNT = Optional.of(BigDecimal.TEN);
     private static final Optional<BigDecimal> DESTINATION_AMOUNT = Optional.of(BigDecimal.TEN);
@@ -215,7 +216,7 @@ public class DefaultLocalQuoteServiceTest {
 //            assertThat(sourceEscrow.getLedgerId(), is(SOURCE_LEDGER_ID));
 //            assertThat(sourceEscrow.getOptExpiryDuration(), is(Optional.empty()));
 //            assertThat(sourceEscrow.getOptDebit().isPresent(), is(false));
-//            assertThat(sourceEscrow.getOptCredit().get().getAmount(), is(SOURCE_AMOUNT.get()));
+//            assertThat(sourceEscrow.getOptCredit().get().getDestinationAmount(), is(SOURCE_AMOUNT.get()));
 //            assertThat(sourceEscrow.getOptCredit().get().getOptAccountId().get(), is(SOURCE_ESCROW_ACCOUNT_ID));
 //        }
 //        {
@@ -227,7 +228,7 @@ public class DefaultLocalQuoteServiceTest {
 //            assertThat(sourceFunds.getLedgerId(), is(SOURCE_LEDGER_ID));
 //            assertThat(sourceFunds.getOptExpiryDuration(), is(Optional.empty()));
 //            assertThat(sourceFunds.getOptCredit().isPresent(), is(false));
-//            assertThat(sourceFunds.getOptDebit().get().getAmount(), is(SOURCE_AMOUNT.get()));
+//            assertThat(sourceFunds.getOptDebit().get().getDestinationAmount(), is(SOURCE_AMOUNT.get()));
 //            assertThat(sourceFunds.getOptDebit().get().getOptAccountId(), is(Optional.empty()));
 //        }
 //        {
@@ -240,7 +241,7 @@ public class DefaultLocalQuoteServiceTest {
 //            assertThat(destinationEscrow.getLedgerId(), is(DESTINATION_LEDGER_ID));
 //            assertThat(destinationEscrow.getOptExpiryDuration(), is(Optional.empty()));
 //            assertThat(destinationEscrow.getOptCredit().isPresent(), is(false));
-//            assertThat(destinationEscrow.getOptDebit().get().getAmount(), is(DESTINATION_AMOUNT.get()));
+//            assertThat(destinationEscrow.getOptDebit().get().getDestinationAmount(), is(DESTINATION_AMOUNT.get()));
 //            assertThat(
 //                    destinationEscrow.getOptDebit().get().getOptAccountId().get(), is(DESTINATION_ESCROW_ACCOUNT_ID));
 //        }
@@ -254,7 +255,7 @@ public class DefaultLocalQuoteServiceTest {
 //            assertThat(destinationFee.getLedgerId(), is(DESTINATION_LEDGER_ID));
 //            assertThat(destinationFee.getOptExpiryDuration(), is(Optional.empty()));
 //            assertThat(destinationFee.getOptDebit().isPresent(), is(false));
-//            assertThat(destinationFee.getOptCredit().get().getAmount(), is(CONNECTOR_FEE));
+//            assertThat(destinationFee.getOptCredit().get().getDestinationAmount(), is(CONNECTOR_FEE));
 //            assertThat(destinationFee.getOptCredit().get().getOptAccountId().get(), is(DESTINATION_FEE_ACCOUNT_ID));
 //        }
 //        {
@@ -267,7 +268,7 @@ public class DefaultLocalQuoteServiceTest {
 //            assertThat(destinationFunds.getLedgerId(), is(DESTINATION_LEDGER_ID));
 //            assertThat(destinationFunds.getOptExpiryDuration(), is(Optional.empty()));
 //            assertThat(destinationFunds.getOptDebit().isPresent(), is(false));
-//            assertThat(destinationFunds.getOptCredit().get().getAmount(), is(DESTINATION_AMOUNT.get()));
+//            assertThat(destinationFunds.getOptCredit().get().getDestinationAmount(), is(DESTINATION_AMOUNT.get()));
 //            assertThat(destinationFunds.getOptCredit().get().getOptAccountId(), is(Optional.empty()));
 //        }
 //

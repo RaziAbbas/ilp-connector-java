@@ -1,13 +1,13 @@
 package money.fluid.ilp.connector.services;
 
-import money.fluid.ilp.connector.model.ids.AssetId;
-import money.fluid.ilp.connector.model.quotes.QuoteRequest;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import money.fluid.ilp.connector.model.quotes.QuoteRequest;
 
-import java.math.BigDecimal;
+import javax.money.MonetaryAmount;
 
 /**
  * A service for calculating a commission (in a particular currency) for a given ILP transfer.  This service is
@@ -17,29 +17,24 @@ import java.math.BigDecimal;
 public interface ConnectorFeeService {
 
     /**
-     * Calculate a commission amount for the specified source {@link QuoteRequest}.  This method computes the commission
-     * as a {@link BigDecimal} as opposed to a monetery amount in order to support non-currency asset types.
+     * Calculate a commission amount for the specified source {@link QuoteRequest}.
      *
-     * @param assetId       A {@link AssetId} representing the asset to compute a commission on.
-     * @param orginalAmount A {@link BigDecimal} representing the original amount of a transfer.
+     * @param originalAmount A {@link MonetaryAmount} representing the original amount of a transfer to calculate a fee
+     *                       for.
      * @return
      */
-    ConnectorFeeInfo calculateConnectorFee(AssetId assetId, BigDecimal orginalAmount);
+    ConnectorFeeInfo calculateConnectorFee(MonetaryAmount originalAmount);
 
     @Getter
+    @RequiredArgsConstructor
     @Builder
     @EqualsAndHashCode
     @ToString
     class ConnectorFeeInfo {
-        // The fee charged by a connector.
-        private final BigDecimal fee;
-
-        private final AssetId feeAssetId;
-
         // The original amount, before fees.
-        private final BigDecimal originalAmount;
+        private final MonetaryAmount originalAmount;
 
         // The amount, after fees.
-        private final BigDecimal amountAfterFee;
+        private final MonetaryAmount amountAfterFee;
     }
 }

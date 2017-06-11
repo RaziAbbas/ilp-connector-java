@@ -7,8 +7,11 @@ import lombok.NonNull;
 import lombok.ToString;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.InterledgerPacketHeader;
+import org.joda.time.DateTime;
 
 import javax.money.MonetaryAmount;
+import java.util.Date;
+import java.util.Optional;
 
 /**
  * A class that outlines the data necessary to create an escrow arrangement between two parties for which a
@@ -28,12 +31,16 @@ public class EscrowInputs {
     // The ILP address of the local account that funded this escrow. This is often different
     // from ILP Source Address.
     @NonNull
-    private final IlpAddress sourceAddress;
+    private final IlpAddress localSourceAddress;
 
     // The ILP address of the local account that will recieve funds if this escrow is executed.  This is often different
     // from ILP Destination Address.
     @NonNull
-    private final IlpAddress destinationAddress;
+    private final IlpAddress localDestinationAddress;
+
+    // This is the expiry of the escrow/transfer...
+    @NonNull
+    private final Optional<DateTime> optExpiry;
 
     @NonNull
     private final MonetaryAmount amount;

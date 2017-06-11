@@ -1,6 +1,5 @@
 package org.interledgerx.ilp.core;
 
-import money.fluid.ilp.connector.model.ids.LedgerAccountId;
 import money.fluid.ilp.ledger.model.LedgerId;
 
 /**
@@ -22,13 +21,12 @@ public interface DeliveredLedgerTransfer<DATA, NOTE_TO_SELF> extends LedgerTrans
     LedgerId getLedgerId();
 
     /**
-     * Get {@link LedgerAccountId} for the local account that funds are being credited to.  This is not an instance of
-     * {@link IlpAddress} because a transfer should operate on only a single Ledger.
+     * Get {@link IlpAddress} for the local account that funds are being credited to.  This is not an instance of
+     * {@link org.interledgerx.ilp.core.IlpAddress} because a transfer should operate on only a single Ledger.
      *
-     * @return An {@link LedgerAccountId} for the local destination account.
+     * @return An {@link IlpAddress} for the local destination account.
      */
     IlpAddress getLocalDestinationAddress();
-
 
 
 }

@@ -77,7 +77,7 @@ public class InfiniteLiquidityQuoteService { // implements QuoteService {
 //                // Add to this asset in order to capture the commission.
 //                // TODO: FIXME!
 //                final Credit sourceCommisionDebit = null;
-//                //new Credit.Builder().withAccountId(commissionAccount.getLedgerAccountId()).withAmount(commission).build();
+//                //new Credit.Builder().withAccountId(commissionAccount.getLedgerAccountIlpAddress()).withAmount(commission).build();
 //
 //                final MonetaryAmount adjustedSourceTransferAmount = this.computeSourceCreditAfterCommission(
 //                        sourceTransferAmount, commission);

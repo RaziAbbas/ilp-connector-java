@@ -13,6 +13,7 @@ import org.interledgerx.ilp.core.InterledgerPacketHeader;
 import org.interledgerx.ilp.core.LedgerTransfer;
 
 import javax.money.MonetaryAmount;
+import java.util.Date;
 import java.util.Optional;
 
 /**
@@ -28,6 +29,13 @@ public class InitialLedgerTransferImpl implements LedgerTransfer<String, NoteToS
 
     @NonNull
     private final InterledgerPacketHeader interledgerPacketHeader;
+
+    @NonNull
+    private final MonetaryAmount amount;
+
+    // This is the expiry of the transfer..
+    @NonNull
+    private final Optional<Date> optExpiry;
 
     @NonNull
     private final Optional<String> optData;
@@ -46,6 +54,8 @@ public class InitialLedgerTransferImpl implements LedgerTransfer<String, NoteToS
     ) {
         this(
                 new InterledgerPacketHeader(ilpTransactionId, sourceAddress, destinationAddress, amount),
+                amount,
+                Optional.empty(),
                 Optional.empty(),
                 Optional.empty()
         );

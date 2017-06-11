@@ -15,8 +15,7 @@ import java.util.UUID;
 /**
  * A pricing quote for a requested set of source and target destination.
  * <p>
- * <p>
- * // A quote may have N number of transactions in the source, and X number of transactions in the destination.
+ * A quote may have N number of transactions in the source, and X number of transactions in the destination.
  */
 public interface Quote {
 

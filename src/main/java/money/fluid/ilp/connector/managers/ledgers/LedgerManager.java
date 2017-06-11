@@ -59,8 +59,11 @@ public interface LedgerManager {
      * payment to the appropriate locally connected ledger.
      *
      * @param sourceLedgerId The {@link LedgerId} of the ledger that should be notified when the {@code ledgerTransfer}
-     *                       is either fulfilled, rejected, or timed-out.
-     * @param ledgerTransfer
+     *                       is either fulfilled, rejected, or timed-out (not necessarily the same ledger as the ledger
+     *                       in the {@link DeliveredLedgerTransfer}).
+     * @param ledgerTransfer An instance of {@link DeliveredLedgerTransfer} that contains information to transfer funds
+     *                       between two locally connected ledgers (i.e., in such a way that no other Connector is
+     *                       involved).
      * @see "https://github.com/interledger/rfcs/issues/77"
      */
     void deliverPayment(final LedgerId sourceLedgerId, final DeliveredLedgerTransfer ledgerTransfer);
@@ -128,6 +131,6 @@ public interface LedgerManager {
      * @param ledgerId
      */
     default IlpAddress getConnectorAccountOnLedger(final LedgerId ledgerId) {
-        return this.findLedgerClientSafely(ledgerId).getConnectionInfo().getLedgerAccountId();
+        return this.findLedgerClientSafely(ledgerId).getConnectionInfo().getLedgerAccountIlpAddress();
     }
 }

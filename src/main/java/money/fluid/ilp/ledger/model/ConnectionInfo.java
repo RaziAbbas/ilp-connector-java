@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
-import money.fluid.ilp.connector.model.ids.ConnectorId;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.Ledger;
 
@@ -37,21 +36,25 @@ public class ConnectionInfo {
     @Getter
     private final String clientVersion;
 
+    // TODO: Remove these comments...
+    // This might be a wallet, or something else.  We use the ledgerAccountIlpAddress as the unique identifier instead.
     // The connectorId of the Connector that this client is communicating on behalf of.
-    @NonNull
-    @Getter
-    private final ConnectorId connectorId;
+    //@NonNull
+    //@Getter
+    //private final String connectorId;
 
     // The ILP address of this Connector on the Ledger that this ConnectionInfo will be used to connect to.  This should
-    // probably be specified by the connector (and determined before-hand by an out-of-band process like a manual ledger
-    // registration process), although based upon the credentials that contained in a connection, it's possible that a
-    // ledger might return this account identifier to a Connector).
+    //  be specified by the client (and determined before-hand by an out-of-band process like a manual ledger
+    // registration process).  This account id is required because a single connector might want to register for multiple
+    // ledgerAccount events, and we want the ledger to be able to support this.
     @NonNull
     @Getter
-    private final IlpAddress ledgerAccountId;
+    private final IlpAddress ledgerAccountIlpAddress;
 
     public String getConnectionId() {
         return String.format(
-                "%s:%s:%s%s", this.clientId, this.clientVersion, this.connectorId, this.internalRandomConnectionId);
+                "%s:%s:%s%s", this.clientId, this.clientVersion, this.ledgerAccountIlpAddress,
+                this.internalRandomConnectionId
+        );
     }
 }

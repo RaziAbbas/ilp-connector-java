@@ -1,10 +1,10 @@
 package money.fluid.ilp.ledger.inmemory;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.google.common.base.Preconditions;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import com.google.common.collect.MapMaker;
 import lombok.Getter;
 import money.fluid.ilp.connector.model.ids.IlpTransactionId;
 import money.fluid.ilp.connector.model.ids.LedgerAccountId;
@@ -12,14 +12,18 @@ import money.fluid.ilp.ledger.EscrowManager;
 import money.fluid.ilp.ledger.LedgerAccountManager;
 import money.fluid.ilp.ledger.inmemory.exceptions.EscrowException;
 import money.fluid.ilp.ledger.inmemory.model.Escrow;
+import money.fluid.ilp.ledger.inmemory.model.Escrow.Status;
 import money.fluid.ilp.ledger.inmemory.model.EscrowInputs;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.LedgerInfo;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * An in-memory implementation of {@link EscrowManager} that tracks Escrow without any sort of data persistence
@@ -44,35 +48,38 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
     private final LedgerAccountManager ledgerAccountManager;
 
     // The ILP account to add and remove escrow from...
-    private final IlpAddress escrowAccountAddress;
+    private final org.interledgerx.ilp.core.IlpAddress escrowAccountAddress;
 
-    // Indicates any amounts that are currently in initiateEscrow from a given source ledger account.
-    //private final Map<IlpTransactionId, Escrow> escrows = new ConcurrentHashMap();
-    private Cache<IlpTransactionId, Escrow> escrows;
+    // Indicates any amounts that are currently in initiateEscrow from a given source ledger account.  Allows them to be
+    // expired without actuall losing them in the actual backing store.  This setup is just an implementation detail.
+    // In reality, all escrows should be backed by a persistent datastore since losing them would be catastrophic.
+    private final ConcurrentMap<IlpTransactionId, Escrow> escrows = new MapMaker().initialCapacity(
+            50).makeMap();
     private volatile EscrowExpirationHandler escrowExpirationHandler;
 
+    /**
+     * Required-args Constructor.
+     *
+     * @param ledgerInfo
+     * @param escrowAccountId
+     * @param ledgerAccountManager
+     */
     public InMemoryEscrowManager(
             final LedgerInfo ledgerInfo,
             final LedgerAccountId escrowAccountId,
-            final LedgerAccountManager ledgerAccountManager,
-            final CacheBuilder<Object, Object> escrowCacheBuilder
+            final LedgerAccountManager ledgerAccountManager
     ) {
         this.ledgerInfo = Objects.requireNonNull(ledgerInfo);
         this.ledgerAccountManager = Objects.requireNonNull(ledgerAccountManager);
 
         // __escrow__ account!
         this.escrowAccountAddress = IlpAddress.of(escrowAccountId, ledgerInfo.getLedgerId());
-
-        this.escrows = Objects.requireNonNull(escrowCacheBuilder)
-                .removalListener(this)
-                .build();
-        this.escrowExpirationHandler = this;
     }
 
     /**
      * Create an initiateEscrow transaction by debiting an {@code amount} of the associated ledger's asset from  {@code
-     * {@link EscrowInputs#getSourceAddress()} and crediting the same amount into the initiateEscrow account for the
-     * associated ledger.
+     * {@link EscrowInputs#getLocalSourceAddress()} and crediting the same amount into the initiateEscrow account for
+     * the associated ledger.
      *
      * @param escrowInputs An instance of {@link EscrowInputs} with all information required to initiate an
      *                     initiateEscrow transaction.
@@ -82,15 +89,24 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
         Objects.requireNonNull(escrowInputs);
 
         // WARNING: This operation is notatomic.  If either fails, the initiateEscrow would be corrupted!
+        // Debit the sender's account and Credit the initiateEscrow account for the sourceAccountId, and put money in
+        // there for holding...
+        ledgerAccountManager.transfer(
+                escrowInputs.getLocalSourceAddress(),
+                this.escrowAccountAddress,
+                escrowInputs.getAmount()
+        );
 
-        // 1. Debit the sender's account
-        ledgerAccountManager.debitAccount(escrowInputs.getSourceAddress(), escrowInputs.getAmount());
-        // 2. Credit the initiateEscrow account for the sourceAccountId, and put money in there for holding...
-        ledgerAccountManager.creditAccount(this.escrowAccountAddress, escrowInputs.getAmount());
-        // 3. Add the initiateEscrow to the map for later storage.
+        // Add the initiateEscrow to the map for later storage.
         final Escrow escrow = new Escrow(escrowInputs, escrowAccountAddress);
         this.escrows.put(escrowInputs.getInterledgerPacketHeader().getIlpTransactionId(), escrow);
         return escrow;
+    }
+
+    @Override
+    public Optional<Escrow> getEscrow(IlpTransactionId ilpTransactionId) {
+        Objects.requireNonNull(ilpTransactionId);
+        return Optional.ofNullable(this.escrows.get(ilpTransactionId));
     }
 
     /**
@@ -107,20 +123,22 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
 
         // WARNING: This operation is notatomic.  If either fails, the initiateEscrow would be corrupted!
 
-        return Optional.ofNullable(this.escrows.getIfPresent(ilpTransactionId))
+        return Optional.ofNullable(this.escrows.get(ilpTransactionId))
                 .map(escrow -> {
-                    // 1. Debit the sender's account
-                    ledgerAccountManager.debitAccount(
+                    // Transfer from the Escrow into the destination account.
+                    ledgerAccountManager.transfer(
                             this.escrowAccountAddress,
+                            escrow.getLocalDestinationAddress(),
                             escrow.getAmount()
                     );
-                    // 2. Credit the initiateEscrow account.
-                    ledgerAccountManager.creditAccount(escrow.getLocalDestinationAddress(), escrow.getAmount());
 
-                    this.escrows.invalidate(escrow.getIlpPacketHeader().getIlpTransactionId());
-                    return escrow;
+                    // Update the Escrow Status...
+                    final Escrow executedEscrow = new Escrow(escrow, Status.EXECUTED);
+                    this.escrows.put(ilpTransactionId, new Escrow(escrow, Status.EXECUTED));
+                    return executedEscrow;
                 })
-                .orElseThrow(() -> new EscrowException("No escrow existed for ILPTransaction: " + ilpTransactionId));
+                .orElseThrow(
+                        () -> new EscrowException("No escrow existed for ILPTransaction: " + ilpTransactionId));
     }
 
     /**
@@ -132,25 +150,34 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
      * @return
      * @throws EscrowException if the escrow execution failed for any reason.
      */
+
     public Escrow reverseEscrow(final IlpTransactionId ilpTransactionId) {
         Objects.requireNonNull(ilpTransactionId);
 
         // WARNING: This operation is notatomic.  If either fails, the initiateEscrow would be corrupted!
 
-        return Optional.ofNullable(this.escrows.getIfPresent(ilpTransactionId))
+        return Optional.ofNullable(this.escrows.get(ilpTransactionId))
                 .map(escrow -> {
-                    // 1. Debit the sender's account
-                    ledgerAccountManager.debitAccount(
+
+                    Preconditions.checkArgument(
+                            escrow.getInterledgerPacketHeader().isOptimisticModeHeader(),
+                            "Only OptimisticMode escrows can be reversed!"
+                    );
+
+                    // Transfer from the Escrow into the destination account.
+                    ledgerAccountManager.transfer(
                             this.escrowAccountAddress,
+                            escrow.getLocalSourceAddress(),
                             escrow.getAmount()
                     );
-                    // 2. Credit the initiateEscrow account.
-                    ledgerAccountManager.creditAccount(escrow.getLocalSourceAddress(), escrow.getAmount());
 
-                    this.escrows.invalidate(escrow.getIlpPacketHeader().getIlpTransactionId());
-                    return escrow;
+                    // Update the Escrow Status...
+                    final Escrow executedEscrow = new Escrow(escrow, Status.EXECUTED);
+                    this.escrows.put(ilpTransactionId, new Escrow(escrow, Status.EXECUTED));
+                    return executedEscrow;
                 })
-                .orElseThrow(() -> new EscrowException("No escrow existed for ILPTransaction: " + ilpTransactionId));
+                .orElseThrow(
+                        () -> new EscrowException("No escrow existed for ILPTransaction: " + ilpTransactionId));
     }
 
     // Not part of the EscrowManager interface because this only connects the Guava Cache to the EscrowManager.
@@ -177,7 +204,7 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
             logger.info("Ledger {} escrow timed out : {}", this.getLedgerInfo().getLedgerId(), notification);
             this.escrowExpirationHandler.onEscrowTimedOut(notification.getValue());
         } else if (notification.getCause().equals(RemovalCause.EXPLICIT)) {
-            logger.info("Ledger {} escrow explicitely removed : {}", this.getLedgerInfo().getLedgerId(), notification);
+            logger.info("Ledger {} escrow explicitly removed : {}", this.getLedgerInfo().getLedgerId(), notification);
         } else if (notification.getCause().equals(RemovalCause.SIZE)) {
             logger.info("Ledger {} Escrow removed due to SIZE: {}", notification);
         } else {
@@ -188,5 +215,20 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
     @Override
     public String toString() {
         return this.getLedgerInfo().getLedgerId().getId();
+    }
+
+    /**
+     * Implementation-only method to provide the test-harness a hook to reverse any expired escrows.  This method is not
+     * part of the formatl {@link EscrowManager} interface because it's only useful in the test harness.  A real escrow
+     * manager would have its own expiration functionality.
+     */
+    public void processExpiredEscrows() {
+        this.escrows.values().stream()
+                .filter(escrow -> escrow.getOptExpiry().isPresent())
+                .filter(escrow -> {
+                    final DateTime now = DateTime.now(DateTimeZone.UTC);
+                    return escrow.getOptExpiry().get().isAfter(now);
+                })
+                .forEach(escrow -> this.reverseEscrow(escrow.getInterledgerPacketHeader().getIlpTransactionId()));
     }
 }

@@ -26,18 +26,12 @@ public interface LedgerTransfer<DATA, NOTE_TO_SELF> {
     IlpAddress getLocalSourceAddress();
 
     /**
-     * Get the transfer amount.
-     * <p>
-     * MUST be positive. The supported precision is defined by each ledger
-     * plugin and can be queried by the host via getLedgerInfo. The ledger plugin MUST
-     * throw an InsufficientPrecisionError if the given amount exceeds the
-     * supported level of precision.
+     * The amount of this transfer (this can differ from the amount in the ILP packet due to FX or connector fee
+     * reductions).
      *
-     * @return An instance of {@link MonetaryAmount}.
+     * @return
      */
-//    default MonetaryAmount getAmount() {
-//        return this.getInterledgerPacketHeader().getAmount();
-//    }
+    MonetaryAmount getAmount();
 
     /**
      * Get the data to be sent.

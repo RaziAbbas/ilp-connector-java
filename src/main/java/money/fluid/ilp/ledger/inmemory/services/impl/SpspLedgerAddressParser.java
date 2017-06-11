@@ -1,8 +1,8 @@
 package money.fluid.ilp.ledger.inmemory.services.impl;
 
 import money.fluid.ilp.connector.model.ids.LedgerAccountId;
-import money.fluid.ilp.ledger.model.LedgerId;
 import money.fluid.ilp.ledger.LedgerAddressParser;
+import money.fluid.ilp.ledger.model.LedgerId;
 import org.apache.commons.lang3.StringUtils;
 import org.interledgerx.ilp.core.IlpAddress;
 
@@ -27,7 +27,9 @@ public class SpspLedgerAddressParser implements LedgerAddressParser {
     }
 
     @Override
-    public IlpAddress parse(final String ledgerAddressString) throws LedgerAddressParserException {
+    public org.interledgerx.ilp.core.IlpAddress parse(
+            final String ledgerAddressString
+    ) throws LedgerAddressParserException {
 
         Objects.requireNonNull(ledgerAddressString);
 

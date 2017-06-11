@@ -12,6 +12,7 @@ import org.interledgerx.ilp.core.ForwardedLedgerTransfer;
 import org.interledgerx.ilp.core.IlpAddress;
 import org.interledgerx.ilp.core.InterledgerPacketHeader;
 
+import javax.money.MonetaryAmount;
 import java.util.Optional;
 
 @RequiredArgsConstructor
@@ -31,26 +32,29 @@ public class ForwardedLedgerTransferImpl implements ForwardedLedgerTransfer<Stri
     private final IlpAddress localSourceAddress;
 
     @NonNull
+    private final MonetaryAmount amount;
+
+    @NonNull
     private final Optional<String> optData;
 
     @NonNull
     private final Optional<NoteToSelf> optNoteToSelf;
 
-    /**
-     * Required-args Consstructor for creation of an instance with no condition nor expiry, using the source ILP address
-     * as the local source address.
-     */
-    public ForwardedLedgerTransferImpl(
-            final InterledgerPacketHeader interledgerPacketHeader, final LedgerId ledgerId,
-            final IlpAddress localSourceAddress
-    ) {
-        this(
-                interledgerPacketHeader,
-                ledgerId,
-                localSourceAddress,
-                Optional.empty(),
-                Optional.empty()
-        );
-    }
+//    /**
+//     * Required-args Consstructor for creation of an instance with no condition nor expiry, using the source ILP address
+//     * as the local source address.
+//     */
+//    public ForwardedLedgerTransferImpl(
+//            final InterledgerPacketHeader interledgerPacketHeader, final LedgerId ledgerId,
+//            final IlpAddress localSourceAddress
+//    ) {
+//        this(
+//                interledgerPacketHeader,
+//                ledgerId,
+//                localSourceAddress,
+//                Optional.empty(),
+//                Optional.empty()
+//        );
+//    }
 
 }

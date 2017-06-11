@@ -80,17 +80,18 @@ public interface LedgerClient {
      * The ledger will execute all transfers that are fulfilled by this
      * fulfillment.
      *
-     * @param fulfillment the fulfillment for this transfer
+     * @param ilpTransactionId
+     * @param fulfillment      the fulfillment for this transfer
      */
-    void fulfillCondition(Fulfillment fulfillment);
+    void fulfillCondition(IlpTransactionId ilpTransactionId, Fulfillment fulfillment);
 
-    /**
-     * Submit an optimistic-mode fulfillment to a ledger.
-     * <p>
-     * The ledger will execute all transfers for the specified {@link IlpTransactionId} since the ILP transaction is an
-     * optimistic-mode transfer, and no fulfillment is required.
-     */
-    void fulfillCondition(final IlpTransactionId ilpTransactionId);
+//    /**
+//     * Submit an optimistic-mode fulfillment to a ledger.
+//     * <p>
+//     * The ledger will execute all transfers for the specified {@link IlpTransactionId} since the ILP transaction is an
+//     * optimistic-mode transfer, and no fulfillment is required.
+//     */
+//    void fulfillCondition(IlpTransactionId ilpTransactionId);
 
     /**
      * Register an event handler to subscribe to events from this client, which come from a single Ledger.  This method
