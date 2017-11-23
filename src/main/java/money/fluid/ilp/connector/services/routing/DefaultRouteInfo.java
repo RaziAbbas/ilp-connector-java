@@ -16,13 +16,13 @@ import money.fluid.ilp.connector.model.ids.ConnectorId;
 public class DefaultRouteInfo implements RouteInfo {
 
     // TODO: String?
-    private final Object additionalInfo;
+    private final Object additionalInfo = null;
 
     // The local account identifier for the source ledger.  E.g., "mark" or "123"
     //private final LedgerAccountId sourceLedgerAccountId;
     //private final LedgerId destinationLedgerId;
 
-    private final long minMessageWindow;
-    private final ConnectorId connectorId;
+    private final long minMessageWindow = -1;
+    private final ConnectorId connectorId = null;
 
 }

@@ -96,16 +96,16 @@ public interface LedgerAccountManager {
         private IlpTransactionId ilpTransactionId;
 
         @NonNull
-        private final DateTime transferDateTime;
+        private final DateTime transferDateTime = null;
 
         @NonNull
-        private final IlpAddress localSourceAddress;
+        private final IlpAddress localSourceAddress = null;
 
         @NonNull
-        private final IlpAddress localDestinationAddress;
+        private final IlpAddress localDestinationAddress = null;
 
         @NonNull
-        private final MonetaryAmount amount;
+        private final MonetaryAmount amount = null;
 
         @Override
         public int compareTo(LedgerAccountTransfer o) {

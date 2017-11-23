@@ -66,7 +66,27 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
     // TODO: In a real ledger, should be configurable.
     private static final LedgerAccountId ESCROW = LedgerAccountId.of("__escrow__");
 
-    @NonNull
+    public LedgerInfo getLedgerInfo() {
+		return ledgerInfo;
+	}
+
+	public QuotingService getQuotingService() {
+		return quotingService;
+	}
+
+	public InMemoryLedgerAccountManager getLedgerAccountManager() {
+		return ledgerAccountManager;
+	}
+
+	public InMemoryLedgerConnectionManager getLedgerConnectionManager() {
+		return ledgerConnectionManager;
+	}
+
+	public InMemoryEscrowManager getEscrowManager() {
+		return escrowManager;
+	}
+
+	@NonNull
     private final String name;
 
     @NonNull
@@ -148,9 +168,9 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
             localSourceAddress = transfer.getLocalSourceAddress();
             localDestinationAddress = transfer.getInterledgerPacketHeader().getDestinationAddress();
 
-            TODO:
+            /*TODO:
             It 's possible here that we get a transfer amount that isn' t correct for our ledger.However, I think the
-            connector should account for this...
+            connector should account for this...*/
 
             destinationAmount = transfer.getAmount();
         } else {
@@ -218,13 +238,15 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
         }
 
         // In order to initiate a remote transfer, create an escrow transaction...
-        final EscrowInputs escrowInputs = EscrowInputs.builder()
+        /*Razi
+         * final EscrowInputs escrowInputs = EscrowInputs.builder()
                 .interledgerPacketHeader(transfer.getInterledgerPacketHeader())
                 .localSourceAddress(localSourceAddress)
                 .localDestinationAddress(localDestinationAddress)
                 .amount(transfer.getInterledgerPacketHeader().getDestinationAmount())
                 .optExpiry(Optional.empty())
-                .build();
+                .build();*/
+        EscrowInputs escrowInputs = new EscrowInputs(transfer.getInterledgerPacketHeader(),localSourceAddress, localDestinationAddress, transfer.getInterledgerPacketHeader().getDestinationAmount(), Optional.empty());
         this.escrowManager.initiateEscrow(escrowInputs);
 
         // Notify listeners that a Transfer has been prepared...
@@ -633,7 +655,7 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
         @Getter
         private final LedgerInfo ledgerInfo;
 
-        // Local identifier to account mapping...Consider a Set here?
+		// Local identifier to account mapping...Consider a Set here?
         @NonNull
         private final Map<IlpAddress, LedgerAccount> accounts;
 
@@ -648,6 +670,14 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
             //this.transfers = ArrayListMultimap.create();
         }
 
+        public LedgerInfo getLedgerInfo() {
+			return ledgerInfo;
+		}
+
+
+		public Map<IlpAddress, LedgerAccount> getAccounts() {
+			return accounts;
+		}
 
         /**
          * A helper method to initialize an account with a given balance, for testing purposes.
@@ -901,7 +931,15 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
         //@NonNull
         //private final Map<ConnectorId, LedgerEventListener> ledgerEventListeners;
 
-        // For a given IlpAddress, there is only one LedgerEventListener, which can contain multiple event handlers.
+        public LedgerInfo getLedgerInfo() {
+			return ledgerInfo;
+		}
+
+		public Map<IlpAddress, LedgerEventListener> getLedgerEventListeners() {
+			return ledgerEventListeners;
+		}
+
+		// For a given IlpAddress, there is only one LedgerEventListener, which can contain multiple event handlers.
         @NonNull
         private final Map<IlpAddress, LedgerEventListener> ledgerEventListeners;
 
@@ -1013,7 +1051,19 @@ public class InMemoryLedger implements Ledger, EscrowExpirationHandler {
         @NonNull
         private final Set<LedgerEventHandler> ledgerEventHandlers;
 
-        /**
+        public LedgerInfo getLedgerInfo() {
+			return ledgerInfo;
+		}
+
+		public IlpAddress getListeningIlpAddress() {
+			return listeningIlpAddress;
+		}
+
+		public Set<LedgerEventHandler> getLedgerEventHandlers() {
+			return ledgerEventHandlers;
+		}
+
+		/**
          * Helper Constructor.  Initializes the {@link List} of {@link LedgerEventHandler}'s to an empty list.
          *
          * @param ledgerInfo

@@ -24,6 +24,10 @@ import org.interledgerx.ilp.core.LedgerTransfer;
 public class NoteToSelf {
 
     @NonNull
-    private final LedgerId originatingLedgerId;
+    private final LedgerId originatingLedgerId = null;
+
+	public LedgerId getOriginatingLedgerId() {
+		return originatingLedgerId;
+	}
 
 }

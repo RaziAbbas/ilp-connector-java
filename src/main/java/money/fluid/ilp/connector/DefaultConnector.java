@@ -1,20 +1,10 @@
 package money.fluid.ilp.connector;
 
-import com.google.common.base.Preconditions;
-import lombok.Getter;
-import lombok.ToString;
-import money.fluid.ilp.connector.managers.ledgers.LedgerManager;
-import money.fluid.ilp.connector.model.ConnectorInfo;
-import money.fluid.ilp.connector.services.ExchangeRateService;
-import money.fluid.ilp.connector.services.ExchangeRateService.ExchangeRateInfo;
-import money.fluid.ilp.connector.services.routing.Route;
-import money.fluid.ilp.connector.services.routing.RoutingService;
-import money.fluid.ilp.ledger.inmemory.events.AbstractEventBusLedgerEventHandler;
-import money.fluid.ilp.ledger.inmemory.model.DeliveredLedgerTransferImpl;
-import money.fluid.ilp.ledger.inmemory.model.ForwardedLedgerTransferImpl;
-import money.fluid.ilp.ledger.inmemory.utils.MoneyUtils;
-import money.fluid.ilp.ledger.model.LedgerId;
-import money.fluid.ilp.ledgerclient.LedgerClient;
+import java.util.Objects;
+import java.util.Optional;
+
+import javax.money.Monetary;
+
 import org.interledgerx.ilp.core.DeliveredLedgerTransfer;
 import org.interledgerx.ilp.core.ForwardedLedgerTransfer;
 import org.interledgerx.ilp.core.IlpAddress;
@@ -29,9 +19,23 @@ import org.interledgerx.ilp.core.events.LedgerTransferRejectedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.money.Monetary;
-import java.util.Objects;
-import java.util.Optional;
+import com.google.common.base.Preconditions;
+
+import lombok.Getter;
+import lombok.ToString;
+import money.fluid.ilp.connector.managers.ledgers.LedgerManager;
+import money.fluid.ilp.connector.model.ConnectorInfo;
+import money.fluid.ilp.connector.services.ExchangeRateService;
+import money.fluid.ilp.connector.services.ExchangeRateService.ExchangeRateInfo;
+import money.fluid.ilp.connector.services.routing.Route;
+import money.fluid.ilp.connector.services.routing.RoutingService;
+import money.fluid.ilp.ledger.inmemory.events.AbstractEventBusLedgerEventHandler;
+import money.fluid.ilp.ledger.inmemory.model.DeliveredLedgerTransferImpl;
+import money.fluid.ilp.ledger.inmemory.model.ForwardedLedgerTransferImpl;
+import money.fluid.ilp.ledger.inmemory.utils.MoneyUtils;
+import money.fluid.ilp.ledger.model.LedgerId;
+import money.fluid.ilp.ledger.model.NoteToSelf;
+import money.fluid.ilp.ledgerclient.LedgerClient;
 
 /**
  * A default implementation of an Interledger {@link Connector}.
@@ -45,11 +49,27 @@ public class DefaultConnector implements Connector {
 
     private final RoutingService routingService;
 
-    private final LedgerManager ledgerManager;
-
+	private final LedgerManager ledgerManager;
+    
     private final ExchangeRateService exchangeRateService;
 
-    /**
+    public LedgerManager getLedgerManager() {
+		return ledgerManager;
+	}
+
+    public ExchangeRateService getExchangeRateService() {
+		return exchangeRateService;
+	}
+    
+    public RoutingService getRoutingService() {
+		return routingService;
+	}
+
+	public ConnectorInfo getConnectorInfo() {
+		return connectorInfo;
+	}
+
+	/**
      * Required-args Constructor.  Allows for full DI support of all dependencies.
      *
      * @param connectorInfo
@@ -405,7 +425,7 @@ public class DefaultConnector implements Connector {
                         final IlpAddress ledgerLocalSourceAddress = this.getListeningConnector().getLedgerManager()
                                 .getConnectorAccountOnLedger(ledgerId);
 
-                        final ForwardedLedgerTransfer transfer = new ForwardedLedgerTransferImpl(
+                        final ForwardedLedgerTransfer<String, NoteToSelf> transfer = new ForwardedLedgerTransferImpl(
                                 ledgerTransferPreparedEvent.getIlpPacketHeader(),
                                 ledgerId,
                                 ledgerLocalSourceAddress,
@@ -565,5 +585,17 @@ public class DefaultConnector implements Connector {
                 }
             }
         }
+
+		@Override
+		public Connector getListeningConnector() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public LedgerClient getSourceLedgerClient() {
+			// TODO Auto-generated method stub
+			return null;
+		}
     }
 }

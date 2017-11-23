@@ -259,8 +259,8 @@
 
         <dependency>
             <groupId>org.interledger</groupId>
-            <artifactId>java-crypto-conditions</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <artifactId>crypto-conditions</artifactId>
+            <version>0.4.0-SNAPSHOT</version>
         </dependency>
 
         <dependency>

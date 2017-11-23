@@ -43,8 +43,35 @@ public class InitialLedgerTransferImpl implements LedgerTransfer<String, NoteToS
     @NonNull
     private final Optional<NoteToSelf> optNoteToSelf;
 
+    public InitialLedgerTransferImpl(InterledgerPacketHeader vinterledgerPacketHeader, MonetaryAmount vamount, Optional<Date> voptExpiry, Optional<String> voptData, Optional<NoteToSelf> voptNoteToSelf) {
+    	this.interledgerPacketHeader = vinterledgerPacketHeader;
+    	this.amount = vamount;
+    	this.optExpiry = voptExpiry;
+    	this.optData = voptData;
+    	this.optNoteToSelf = voptNoteToSelf;
+    }
 
-    /**
+    public InterledgerPacketHeader getInterledgerPacketHeader() {
+		return interledgerPacketHeader;
+	}
+
+	public MonetaryAmount getAmount() {
+		return amount;
+	}
+
+	public Optional<Date> getOptExpiry() {
+		return optExpiry;
+	}
+
+	public Optional<String> getOptData() {
+		return optData;
+	}
+
+	public Optional<NoteToSelf> getOptNoteToSelf() {
+		return optNoteToSelf;
+	}
+
+	/**
      * Required-args Constructor for creation of an instance with no condition nor expiry, using the source ILP address
      * as the local source address.
      */

@@ -19,6 +19,6 @@ import java.util.Map;
 public class ConnectorMeta {
 
     @JsonProperty("urls")
-    private final Map<String, URI> urls;
+    private final Map<String, URI> urls = null;
 
 }

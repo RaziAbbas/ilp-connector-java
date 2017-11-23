@@ -25,5 +25,9 @@ public class ConnectorInfo {
      * @return
      */
     @NonNull
-    private final ConnectorId connectorId;
+    private final ConnectorId connectorId = null;
+
+	public ConnectorId getConnectorId() {
+		return connectorId;
+	}
 }

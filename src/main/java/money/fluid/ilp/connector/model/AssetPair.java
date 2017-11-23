@@ -22,17 +22,17 @@ public class AssetPair {
 
     @NonNull
     @JsonProperty(JsonConstants.SOURCE_LEDGER)
-    private final LedgerId sourceLedger;
+    private final LedgerId sourceLedger = null;
 
     @NonNull
     @JsonProperty(JsonConstants.SOURCE_ASSET)
-    private final AssetId sourceAsset;
+    private final AssetId sourceAsset = null;
 
     @NonNull
     @JsonProperty(JsonConstants.DESTINATION_LEDGER)
-    private final LedgerId destinationLedger;
+    private final LedgerId destinationLedger = null;
 
     @NonNull
     @JsonProperty(JsonConstants.DESTINATION_ASSET)
-    private final AssetId destinationAsset;
+    private final AssetId destinationAsset = null;
 }

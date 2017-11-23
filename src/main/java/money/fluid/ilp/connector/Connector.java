@@ -1,5 +1,7 @@
 package money.fluid.ilp.connector;
 
+import org.interledgerx.ilp.core.IlpAddress;
+
 import money.fluid.ilp.connector.managers.ledgers.LedgerManager;
 import money.fluid.ilp.connector.model.ConnectorInfo;
 import money.fluid.ilp.connector.services.ExchangeRateService;
@@ -21,4 +23,8 @@ public interface Connector {
     // TODO: Add startup and shutdown hooks?
 
     void shutdown();
+
+	boolean isTransferLocallyDeliverable(IlpAddress destinationAddress);
+
+	boolean isTransferRemotelyForwardable(IlpAddress destinationAddress);
 }

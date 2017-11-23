@@ -31,7 +31,19 @@ public interface QuoteRequest extends LedgerAmount {
     final class Builder {
 
         private LedgerId ledgerId;
-        private Optional<Long> optExpiryDuration;
+        public LedgerId getLedgerId() {
+			return ledgerId;
+		}
+
+		public Optional<Long> getOptExpiryDuration() {
+			return optExpiryDuration;
+		}
+
+		public Optional<BigDecimal> getOptAmount() {
+			return optAmount;
+		}
+
+		private Optional<Long> optExpiryDuration;
         private Optional<BigDecimal> optAmount;
 
         /**
@@ -123,6 +135,21 @@ public interface QuoteRequest extends LedgerAmount {
                 this.optAmount = builder.getOptAmount();
                 this.optExpiryDuration = builder.getOptExpiryDuration();
             }
+
+			@Override
+			public LedgerId getLedgerId() {
+				return this.ledgerId;
+			}
+
+			@Override
+			public Optional<BigDecimal> getOptAmount() {
+				return this.optAmount;
+			}
+
+			@Override
+			public Optional<Long> getOptExpiryDuration() {
+				return this.optExpiryDuration;
+			}
 
         }
     }

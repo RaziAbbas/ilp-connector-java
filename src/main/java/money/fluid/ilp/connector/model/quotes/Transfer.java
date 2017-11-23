@@ -58,7 +58,23 @@ public interface Transfer {
         protected BigDecimal amount;
         protected Optional<Long> optExpiryDuration;
 
-        /**
+        public LedgerId getLedgerId() {
+			return ledgerId;
+		}
+
+		public Optional<LedgerAccountId> getOptAccountId() {
+			return optAccountId;
+		}
+
+		public BigDecimal getAmount() {
+			return amount;
+		}
+
+		public Optional<Long> getOptExpiryDuration() {
+			return optExpiryDuration;
+		}
+
+		/**
          * Required-args Constructor.
          *
          * @param amount
@@ -130,6 +146,22 @@ public interface Transfer {
             @JsonProperty("expiry_duration")
             private final Optional<Long> optExpiryDuration;
 
+            public LedgerId getLedgerId() {
+				return ledgerId;
+			}
+
+			public Optional<LedgerAccountId> getOptAccountId() {
+				return optAccountId;
+			}
+
+			public BigDecimal getAmount() {
+				return amount;
+			}
+
+			public Optional<Long> getOptExpiryDuration() {
+				return optExpiryDuration;
+			}
+            
             /**
              * Required-args Constructor.
              *

@@ -13,10 +13,30 @@ import javax.money.MonetaryAmount;
 @Getter
 @EqualsAndHashCode(callSuper = true)
 public abstract class LedgerTransferEvent extends LedgerEvent {
-    private final InterledgerPacketHeader ilpPacketHeader;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private final InterledgerPacketHeader ilpPacketHeader;
     private final IlpAddress localSourceAddress;
     private final IlpAddress localDestinationAddress;
-    private final MonetaryAmount amount;
+    public InterledgerPacketHeader getIlpPacketHeader() {
+		return ilpPacketHeader;
+	}
+
+	public IlpAddress getLocalSourceAddress() {
+		return localSourceAddress;
+	}
+
+	public IlpAddress getLocalDestinationAddress() {
+		return localDestinationAddress;
+	}
+
+	public MonetaryAmount getAmount() {
+		return amount;
+	}
+
+	private final MonetaryAmount amount;
 
     /**
      * @param source

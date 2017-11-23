@@ -54,7 +54,19 @@ public interface TransferRequest {
         private Optional<Long> optExpiryDuration;
         private Optional<MonetaryAmount> optAmount;
 
-        /**
+        public StringId<Ledger> getLedgerId() {
+			return ledgerId;
+		}
+
+		public Optional<Long> getOptExpiryDuration() {
+			return optExpiryDuration;
+		}
+
+		public Optional<MonetaryAmount> getOptAmount() {
+			return optAmount;
+		}
+
+		/**
          * Build method.
          *
          * @return A new instance of {@link Quote}.
@@ -107,7 +119,19 @@ public interface TransferRequest {
             private final Optional<Long> optExpiryDuration;
             private final Optional<MonetaryAmount> optAmount;
 
-            /**
+            public StringId<Ledger> getLedgerId() {
+				return ledgerId;
+			}
+
+			public Optional<Long> getOptExpiryDuration() {
+				return optExpiryDuration;
+			}
+
+			public Optional<MonetaryAmount> getOptAmount() {
+				return optAmount;
+			}
+
+			/**
              * Required-args Constructor.
              *
              * @param builder

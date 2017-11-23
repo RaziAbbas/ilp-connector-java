@@ -19,13 +19,26 @@ import org.interledgerx.ilp.core.LedgerTransfer;
 public class PendingTransfer {
 
     @NonNull
-    private final LedgerTransfer ledgerTransfer;
+    private LedgerTransfer ledgerTransfer = null;
 
     // Add a LedgerId here so that when this is timed out, the manager can grab the client and reject
     @NonNull
-    private final LedgerId ledgerId;
+    private LedgerId ledgerId = null;
 
-    public static PendingTransfer of(final LedgerTransfer ledgerTransfer, final LedgerId ledgerIdToNotify) {
+    public PendingTransfer(LedgerTransfer ledgerTransfer2, LedgerId ledgerIdToNotify) {
+		this.ledgerTransfer = ledgerTransfer2;
+		this.ledgerId = ledgerIdToNotify;
+	}
+
+	public LedgerTransfer getLedgerTransfer() {
+		return ledgerTransfer;
+	}
+
+	public LedgerId getLedgerId() {
+		return ledgerId;
+	}
+
+	public static PendingTransfer of(final LedgerTransfer ledgerTransfer, final LedgerId ledgerIdToNotify) {
         return new PendingTransfer(ledgerTransfer, ledgerIdToNotify);
     }
 

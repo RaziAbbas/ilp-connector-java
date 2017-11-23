@@ -17,23 +17,43 @@ import java.util.Optional;
 @EqualsAndHashCode
 public class DefaultRoute implements Route {
 
-    private final LiquidityCurve liquidityCurve;
+    private final LiquidityCurve liquidityCurve = null;
 
     // For a given ILP transaction, this is the ledgerAddress on the source-ledger that a Connector will transfer money
     // out of (into escrow) to initiate the next hop operation.
-    private final IlpAddress sourceAddress;
+    private final IlpAddress sourceAddress = null;
 
     // TODO: Is this needed for routing?  Aren't there cases where we don't actually know the next ledger address, but only know the destination?
     //private final LedgerAddress nextLedgerAddress;
 
     // The ultimate final destination for an ILP payment...
-    private final IlpAddress destinationAddress;
+    private final IlpAddress destinationAddress = null;
 
     // An ordered list of Connector hops that this route should proceed through.  Is this knowable ahead of time?
     //private final TreeSet<ConnectorId> hops;
 
     // TODO: Do routes always expire?  In other words, might this be optional?
-    private final Optional<DateTime> optExpiresAt;
+    private final Optional<DateTime> optExpiresAt = null;
+
+	@Override
+	public LiquidityCurve getLiquidityCurve() {
+		return this.liquidityCurve;
+	}
+
+	@Override
+	public IlpAddress getSourceAddress() {
+		return this.sourceAddress;
+	}
+
+	@Override
+	public IlpAddress getDestinationAddress() {
+		return this.destinationAddress;
+	}
+
+	@Override
+	public Optional<DateTime> getOptExpiresAt() {
+		return this.optExpiresAt;
+	}
 
 //    private final RouteInfo routeInfo;
 

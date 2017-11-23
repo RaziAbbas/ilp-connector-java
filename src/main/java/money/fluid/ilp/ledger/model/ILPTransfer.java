@@ -170,4 +170,52 @@ public class ILPTransfer {
     private DateTime getCurrentTime() {
         return DateTime.now(DateTimeZone.UTC);
     }
+
+	public String getId() {
+		return id;
+	}
+
+	public String getLedgerId() {
+		return ledgerId;
+	}
+
+	public LedgerTransferStatus getStatus() {
+		return status;
+	}
+
+	public DateTime getProposedAt() {
+		return proposedAt;
+	}
+
+	public Optional<Condition> getOptCondition() {
+		return optCondition;
+	}
+
+	public Optional<String> getOptExtraInfo() {
+		return optExtraInfo;
+	}
+
+	public Optional<Fulfillment> getOptExecutionFulfillment() {
+		return optExecutionFulfillment;
+	}
+
+	public Optional<Fulfillment> getOptCancelationFulfillment() {
+		return optCancelationFulfillment;
+	}
+
+	public Optional<DateTime> getOptExpirationAt() {
+		return optExpirationAt;
+	}
+
+	public Optional<DateTime> getOptPreparedAt() {
+		return optPreparedAt;
+	}
+
+	public Optional<DateTime> getOptExecutedAt() {
+		return optExecutedAt;
+	}
+
+	public Optional<DateTime> getOptRejectedAt() {
+		return optRejectedAt;
+	}
 }

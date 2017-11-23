@@ -21,16 +21,16 @@ import money.fluid.ilp.ledger.model.LedgerId;
 public class RouteRate implements Comparable<RouteRate> {
 
     @NonNull
-    private final LedgerId sourceLedgerId;
+    private final LedgerId sourceLedgerId = null;
 
     @NonNull
-    private final LedgerId destinationLedgerId;
+    private final LedgerId destinationLedgerId = null;
 
     @NonNull
-    private final Route route;
+    private final Route route = null;
 
     @NonNull
-    private final LiquidityCurve liquidityCurve;
+    private final LiquidityCurve liquidityCurve = null;
 
     // TODO: Unit Tests!
     @Override

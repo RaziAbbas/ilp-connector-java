@@ -15,10 +15,23 @@ import money.fluid.ilp.ledger.model.LedgerId;
 @EqualsAndHashCode
 public class IlpAddress {
 
+	@NonNull
+    private LedgerAccountId ledgerAccountId = null;
     @NonNull
-    private final LedgerAccountId ledgerAccountId;
-    @NonNull
-    private final LedgerId ledgerId;
+    private LedgerId ledgerId = null;
+	
+    public LedgerAccountId getLedgerAccountId() {
+		return ledgerAccountId;
+	}
+
+	public LedgerId getLedgerId() {
+		return ledgerId;
+	}
+	
+	private IlpAddress(LedgerAccountId vaccountId, LedgerId vledgerId) {
+		this.ledgerId = vledgerId;
+		this.ledgerAccountId = vaccountId;
+	}
 
     /**
      * Helper method to create an instance of {@link IlpAddress}.

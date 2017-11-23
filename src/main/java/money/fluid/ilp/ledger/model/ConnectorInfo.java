@@ -27,11 +27,19 @@ public class ConnectorInfo {
      * @return
      */
     @NonNull
-    private final ConnectorId connectorId;
+    private final ConnectorId connectorId = null;
 
     // TODO: Split this into 2 classes.  Sometimes, this class is specified without an accountId because the object is
     // coming from the Connector.  However, once in the Ledger, the ledger will populate this account, and this is useful
     // to be able to lookup a LedgerEventListener by connectorId.
     @NonNull
-    private final IlpAddress ilpAddress;
+    private final IlpAddress ilpAddress = null;
+
+	public ConnectorId getConnectorId() {
+		return connectorId;
+	}
+
+	public IlpAddress getIlpAddress() {
+		return ilpAddress;
+	}
 }

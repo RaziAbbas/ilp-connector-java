@@ -32,9 +32,9 @@ public interface ConnectorFeeService {
     @ToString
     class ConnectorFeeInfo {
         // The original amount, before fees.
-        private final MonetaryAmount originalAmount;
+        private final MonetaryAmount originalAmount = null;
 
         // The amount, after fees.
-        private final MonetaryAmount amountAfterFee;
+        private final MonetaryAmount amountAfterFee = null;
     }
 }

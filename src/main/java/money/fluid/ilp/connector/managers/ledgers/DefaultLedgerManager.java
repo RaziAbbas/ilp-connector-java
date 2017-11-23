@@ -31,7 +31,11 @@ public class DefaultLedgerManager implements LedgerManager {
     // TODO: This should be backed by a datastore since these transfers should not be lost until they are expired or fulfilled.
     private final PendingTransferManager pendingTransferManager;
 
-    /**
+    public PendingTransferManager getPendingTransferManager() {
+		return pendingTransferManager;
+	}
+
+	/**
      * Required-args Constructor.
      *
      * @param connectorId
@@ -128,4 +132,14 @@ public class DefaultLedgerManager implements LedgerManager {
     public IlpAddress getConnectorAccountOnLedger(final LedgerId ledgerId) {
         return this.findLedgerClientSafely(ledgerId).getConnectionInfo().getLedgerAccountIlpAddress();
     }
+
+	@Override
+	public ConnectorId getConnectorId() {
+		return this.connectorId;
+	}
+
+	@Override
+	public Set<LedgerClient> getLedgerClients() {
+		return this.ledgerClients;
+	}
 }

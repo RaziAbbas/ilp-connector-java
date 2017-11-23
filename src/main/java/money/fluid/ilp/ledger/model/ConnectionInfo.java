@@ -30,11 +30,11 @@ public class ConnectionInfo {
 
     @NonNull
     @Getter
-    private final String clientId;
+    private final String clientId = null;
 
     @NonNull
     @Getter
-    private final String clientVersion;
+    private final String clientVersion = null;
 
     // TODO: Remove these comments...
     // This might be a wallet, or something else.  We use the ledgerAccountIlpAddress as the unique identifier instead.
@@ -49,9 +49,35 @@ public class ConnectionInfo {
     // ledgerAccount events, and we want the ledger to be able to support this.
     @NonNull
     @Getter
-    private final IlpAddress ledgerAccountIlpAddress;
+    private final IlpAddress ledgerAccountIlpAddress = null;
 
-    public String getConnectionId() {
+    
+    
+    public UUID getInternalRandomConnectionId() {
+		return internalRandomConnectionId;
+	}
+
+
+
+	public String getClientId() {
+		return clientId;
+	}
+
+
+
+	public String getClientVersion() {
+		return clientVersion;
+	}
+
+
+
+	public IlpAddress getLedgerAccountIlpAddress() {
+		return ledgerAccountIlpAddress;
+	}
+
+
+
+	public String getConnectionId() {
         return String.format(
                 "%s:%s:%s%s", this.clientId, this.clientVersion, this.ledgerAccountIlpAddress,
                 this.internalRandomConnectionId

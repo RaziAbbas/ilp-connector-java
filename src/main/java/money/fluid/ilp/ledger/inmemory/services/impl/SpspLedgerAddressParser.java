@@ -49,7 +49,7 @@ public class SpspLedgerAddressParser implements LedgerAddressParser {
             if (StringUtils.isEmpty(ledgerName)) {
                 throw new IllegalArgumentException("empty ledger name");
             }
-            return new IlpAddress(LedgerAccountId.of(accountName), LedgerId.of(ledgerName));
+            return IlpAddress.of(LedgerAccountId.of(accountName), LedgerId.of(ledgerName));
         } catch (Exception ex) {
             throw new LedgerAddressParserException(ledgerAddressString, ex);
         }

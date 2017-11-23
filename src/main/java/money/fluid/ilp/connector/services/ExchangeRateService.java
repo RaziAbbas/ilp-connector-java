@@ -165,9 +165,15 @@ public interface ExchangeRateService {
     @EqualsAndHashCode
     class ExchangeRateInfo {
         @NonNull
-        private final MonetaryAmount sourceAmount;
+        private final MonetaryAmount sourceAmount = null;
         @NonNull
-        private final MonetaryAmount destinationAmount;
+        private final MonetaryAmount destinationAmount = null;
+		public MonetaryAmount getSourceAmount() {
+			return sourceAmount;
+		}
+		public MonetaryAmount getDestinationAmount() {
+			return destinationAmount;
+		}
 
         /**
          * Return the exchange rate, as a big decimal.  For example, if one of the source asset can be purchased for 10

@@ -96,8 +96,14 @@ public interface QuotingService {
     @ToString
     @EqualsAndHashCode
     class LedgerQuote {
-        private final MonetaryAmount transferAmount;
-        private final ConnectorInfo destinationConnectorInfo;
+        private final MonetaryAmount transferAmount = null;
+        public MonetaryAmount getTransferAmount() {
+			return transferAmount;
+		}
+		public ConnectorInfo getDestinationConnectorInfo() {
+			return destinationConnectorInfo;
+		}
+		private final ConnectorInfo destinationConnectorInfo = null;
     }
 
 }

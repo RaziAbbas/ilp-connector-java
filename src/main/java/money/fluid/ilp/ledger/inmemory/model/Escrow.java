@@ -27,7 +27,35 @@ import java.util.Optional;
 @EqualsAndHashCode
 public class Escrow {
 
-    // Holds the ilp transaction id, the ultimate source and destination of funds from an ILP perspective (might be
+    public InterledgerPacketHeader getInterledgerPacketHeader() {
+		return interledgerPacketHeader;
+	}
+
+	public IlpAddress getLocalSourceAddress() {
+		return localSourceAddress;
+	}
+
+	public IlpAddress getEscrowAddress() {
+		return escrowAddress;
+	}
+
+	public IlpAddress getLocalDestinationAddress() {
+		return localDestinationAddress;
+	}
+
+	public MonetaryAmount getAmount() {
+		return amount;
+	}
+
+	public Optional<DateTime> getOptExpiry() {
+		return optExpiry;
+	}
+
+	public Status getStatus() {
+		return status;
+	}
+
+	// Holds the ilp transaction id, the ultimate source and destination of funds from an ILP perspective (might be
     // different from the local accounts in this escrow)
     @NonNull
     private final InterledgerPacketHeader interledgerPacketHeader;

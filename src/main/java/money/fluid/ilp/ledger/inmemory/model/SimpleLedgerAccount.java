@@ -16,7 +16,14 @@ import javax.money.MonetaryAmount;
 @ToString
 @EqualsAndHashCode
 public class SimpleLedgerAccount implements LedgerAccount {
-    @NonNull
+	
+    public SimpleLedgerAccount(LedgerAccountId of, IlpAddress ilpAddress, MonetaryAmount initialAmount) {
+		this.ledgerAccountId = of;
+		this.ilpIdentifier = ilpAddress;
+		this.balance = initialAmount;
+	}
+
+	@NonNull
     private final LedgerAccountId ledgerAccountId;
 
     @NonNull
@@ -24,4 +31,21 @@ public class SimpleLedgerAccount implements LedgerAccount {
 
     @NonNull
     private final MonetaryAmount balance;
+
+	public LedgerAccountId getLedgerAccountId() {
+		return ledgerAccountId;
+	}
+
+	public IlpAddress getIlpIdentifier() {
+		return ilpIdentifier;
+	}
+
+	public MonetaryAmount getBalance() {
+		return balance;
+	}
+
+	@Override
+	public LedgerAccountId getId() {
+		return this.ledgerAccountId;
+	}
 }

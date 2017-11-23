@@ -46,7 +46,23 @@ public class InMemoryLedgerClient implements LedgerClient {
 
     private AtomicBoolean connected;
 
-    /**
+    public ConnectionInfo getConnectionInfo() {
+		return connectionInfo;
+	}
+
+	public InMemoryLedger getInMemoryLedger() {
+		return inMemoryLedger;
+	}
+
+	public Set<LedgerEventHandler> getLedgerEventHandlers() {
+		return ledgerEventHandlers;
+	}
+
+	public AtomicBoolean getConnected() {
+		return connected;
+	}
+
+	/**
      * Default Constructor.  Initializes an empty {@link Set} of {@link LedgerEventHandler}.
      *
      * @param connectionInfo

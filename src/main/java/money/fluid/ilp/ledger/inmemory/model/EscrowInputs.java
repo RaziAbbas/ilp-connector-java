@@ -26,22 +26,50 @@ public class EscrowInputs {
     // Holds the ilp transaction id, the ultimate source and destination of funds from an ILP perspective (might be
     // different from the local accounts in this escrow)
     @NonNull
-    private final InterledgerPacketHeader interledgerPacketHeader;
+    private InterledgerPacketHeader interledgerPacketHeader = null;
 
     // The ILP address of the local account that funded this escrow. This is often different
     // from ILP Source Address.
     @NonNull
-    private final IlpAddress localSourceAddress;
+    private IlpAddress localSourceAddress = null;
 
     // The ILP address of the local account that will recieve funds if this escrow is executed.  This is often different
     // from ILP Destination Address.
     @NonNull
-    private final IlpAddress localDestinationAddress;
+    private IlpAddress localDestinationAddress = null;
 
     // This is the expiry of the escrow/transfer...
     @NonNull
-    private final Optional<DateTime> optExpiry;
+    private Optional<DateTime> optExpiry = null;
+    
+	@NonNull
+    private MonetaryAmount amount = null;
 
-    @NonNull
-    private final MonetaryAmount amount;
+	public EscrowInputs(InterledgerPacketHeader vinterledgerPacketHeader, IlpAddress vlocalSourceAddress, IlpAddress vlocalDestinationAddress, MonetaryAmount vdestinationAmount, Optional<DateTime> voptExpiry) {
+		this.interledgerPacketHeader = vinterledgerPacketHeader;
+		this.localSourceAddress = vlocalSourceAddress;
+		this.localDestinationAddress = vlocalDestinationAddress;
+		this.amount = vdestinationAmount;
+		this.optExpiry = voptExpiry;		
+	}
+	
+    public InterledgerPacketHeader getInterledgerPacketHeader() {
+		return interledgerPacketHeader;
+	}
+
+	public IlpAddress getLocalSourceAddress() {
+		return localSourceAddress;
+	}
+
+	public IlpAddress getLocalDestinationAddress() {
+		return localDestinationAddress;
+	}
+
+	public Optional<DateTime> getOptExpiry() {
+		return optExpiry;
+	}
+
+	public MonetaryAmount getAmount() {
+		return amount;
+	}
 }

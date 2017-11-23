@@ -44,7 +44,7 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
 
     private final LedgerInfo ledgerInfo;
 
-    // The main ledger to move funds around in...
+	// The main ledger to move funds around in...
     private final LedgerAccountManager ledgerAccountManager;
 
     // The ILP account to add and remove escrow from...
@@ -75,6 +75,27 @@ public class InMemoryEscrowManager implements EscrowManager, RemovalListener<Ilp
         // __escrow__ account!
         this.escrowAccountAddress = IlpAddress.of(escrowAccountId, ledgerInfo.getLedgerId());
     }
+    
+    public LedgerInfo getLedgerInfo() {
+		return ledgerInfo;
+	}
+
+	public LedgerAccountManager getLedgerAccountManager() {
+		return ledgerAccountManager;
+	}
+
+	public org.interledgerx.ilp.core.IlpAddress getEscrowAccountAddress() {
+		return escrowAccountAddress;
+	}
+
+	public ConcurrentMap<IlpTransactionId, Escrow> getEscrows() {
+		return escrows;
+	}
+
+	public EscrowExpirationHandler getEscrowExpirationHandler() {
+		return escrowExpirationHandler;
+	}
+
 
     /**
      * Create an initiateEscrow transaction by debiting an {@code amount} of the associated ledger's asset from  {@code

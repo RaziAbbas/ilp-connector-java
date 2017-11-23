@@ -171,6 +171,36 @@ public interface Quote {
 
                 this.transaction = Objects.requireNonNull(builder.transaction);
             }
+
+			@Override
+			public LedgerId getSourceLedgerId() {
+				return this.sourceLedgerId;
+			}
+
+			@Override
+			public AssetId getSourceAssetId() {
+				return this.sourceAssetId;
+			}
+
+			@Override
+			public LedgerId getDestinationLedgerId() {
+				return this.destinationLedgerId;
+			}
+
+			@Override
+			public AssetId getDestinationAssetId() {
+				return this.destinationAssetId;
+			}
+
+			@Override
+			public BigDecimal getExchangeRate() {
+				return this.exchangeRate;
+			}
+
+			@Override
+			public Transaction getTransaction() {
+				return this.transaction;
+			}
         }
     }
 }

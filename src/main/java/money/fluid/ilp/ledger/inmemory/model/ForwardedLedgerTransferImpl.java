@@ -23,22 +23,64 @@ import java.util.Optional;
 public class ForwardedLedgerTransferImpl implements ForwardedLedgerTransfer<String, NoteToSelf> {
 
     @NonNull
-    private final InterledgerPacketHeader interledgerPacketHeader;
+    private  InterledgerPacketHeader interledgerPacketHeader = null;
 
     @NonNull
-    private final LedgerId ledgerId;
+    private  LedgerId ledgerId = null;
 
     @NonNull
-    private final IlpAddress localSourceAddress;
+    private  IlpAddress localSourceAddress = null;
 
     @NonNull
-    private final MonetaryAmount amount;
+    private  MonetaryAmount amount = null;
 
     @NonNull
-    private final Optional<String> optData;
+    private  Optional<String> optData = null;
 
     @NonNull
-    private final Optional<NoteToSelf> optNoteToSelf;
+    private  Optional<NoteToSelf> optNoteToSelf = null;
+
+	public ForwardedLedgerTransferImpl(InterledgerPacketHeader ilpPacketHeader, LedgerId ledgerId2,
+			IlpAddress ledgerLocalSourceAddress, MonetaryAmount zero, Optional<Object> empty, Optional<Object> empty2) {
+		this.interledgerPacketHeader = ilpPacketHeader;
+		this.ledgerId = ledgerId2;
+		this.localSourceAddress = ledgerLocalSourceAddress;
+		this.amount = zero;
+		this.optData = null;
+		this.optNoteToSelf = null;
+		
+		
+	}
+
+	@Override
+	public InterledgerPacketHeader getInterledgerPacketHeader() {
+		return this.interledgerPacketHeader;
+	}
+
+	@Override
+	public IlpAddress getLocalSourceAddress() {
+		return this.localSourceAddress;
+	}
+
+	@Override
+	public MonetaryAmount getAmount() {
+		return this.amount;
+	}
+
+	@Override
+	public Optional<String> getOptData() {
+		return this.optData;
+	}
+
+	@Override
+	public Optional<NoteToSelf> getOptNoteToSelf() {
+		return this.optNoteToSelf;
+	}
+
+	@Override
+	public LedgerId getLedgerId() {
+		return this.ledgerId;
+	}
 
 //    /**
 //     * Required-args Consstructor for creation of an instance with no condition nor expiry, using the source ILP address

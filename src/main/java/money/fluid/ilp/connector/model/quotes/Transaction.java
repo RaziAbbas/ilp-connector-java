@@ -27,7 +27,17 @@ public interface Transaction {
         private Collection<Debit> debits;
         private Collection<Credit> credits;
 
-        /**
+        public Collection<Debit> getDebits() {
+			return debits;
+		}
+
+
+		public Collection<Credit> getCredits() {
+			return credits;
+		}
+
+
+		/**
          * Build method.
          *
          * @return A new instance of {@link Transaction}.
@@ -90,9 +100,17 @@ public interface Transaction {
         private final class Impl implements Transaction {
 
             private final Collection<Debit> debits;
-            private final Collection<Credit> credits;
+			private final Collection<Credit> credits;
+            
+            public Collection<Debit> getDebits() {
+				return debits;
+			}
 
-            /**
+            public Collection<Credit> getCredits() {
+				return credits;
+			}
+
+			/**
              * Required-args Constructor.
              *
              * @param builder
