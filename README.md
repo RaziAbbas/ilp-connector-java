@@ -93,6 +93,6 @@ generally only do so with trusted connectors._
 Start using Application.java
 Check if running - http://localhost:8080/health
 
-QuoteController has been commented - its a TODO for future.
-GCPController - Use for Google Cloud
-ILPController - To implement in immediate future.
+ * -[ ] QuoteController has been commented - its a TODO for future.
+ * -[ ] GCPController - Use for Google Cloud
+ * -[ ] ILPController - To implement in immediate future.
