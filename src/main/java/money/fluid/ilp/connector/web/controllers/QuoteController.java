@@ -18,7 +18,7 @@ import java.util.Objects;
  * A REST endpoint for serving the /quote resource, which is a mechanism to provide a quote for a given connector
  * exchange transaction.
  */
-@RestController
+// - Razi - Enable Later @RestController
 public class QuoteController {
     private final QuoteService quoteService;
 

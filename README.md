@@ -87,3 +87,12 @@ a mode of ILP that is intended to be used with smaller payments under the assump
 so sending small amounts of money might occur more quickly if fulfilments aren't used.  In this mode, it's possible for a Connector
 to pass the equivalent of a forged fulfilment (though no fulfilments are actually used), so Connectors operating in this mode should 
 generally only do so with trusted connectors._
+
+
+### Invocations and how to RUN
+Start using Application.java
+Check if running - http://localhost:8080/health
+
+QuoteController has been commented - its a TODO for future.
+GCPController - Use for Google Cloud
+ILPController - To implement in immediate future.

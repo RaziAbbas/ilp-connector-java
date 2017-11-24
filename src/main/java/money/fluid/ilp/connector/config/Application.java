@@ -35,7 +35,7 @@ import static org.springframework.boot.Banner.Mode.CONSOLE;
         //PubsubConfig.class,
 })
 @PropertySource("classpath:application.properties")
-@ComponentScan(basePackages = {"money.fluid.ilp.connector.controllers", "money.fluid.ilp.connector.filters"})
+@ComponentScan(basePackages = {"money.fluid.ilp.connector.web.controllers", "money.fluid.ilp.connector.web.filters"})
 public class Application {
     public static void main(String[] args) {
         final SpringApplication app = new SpringApplication(Application.class);
